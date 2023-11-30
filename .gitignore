@@ -1,6 +1,7 @@
 # Ignore
 data/*
 *.requirements.txt
+**/__pycache__/*
 
 # Allow download python file
 !data/download.py

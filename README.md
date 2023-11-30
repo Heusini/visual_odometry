@@ -18,3 +18,7 @@ python data/download.py
 - Feature detection and matching ( Use library, OpenCV, use efficent version?, SIFT / RANSAC ? )
 - Setup pipeline and visualization 
 - Triangulation and PNP
+
+## Unceartainties
+
+- 
