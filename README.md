@@ -12,3 +12,9 @@ To download the zipfiles for the project you can use this [script](./data/downlo
 ```sh
 python data/download.py
 ```
+
+## Tasks
+
+- Feature detection and matching ( Use library, OpenCV, use efficent version?, SIFT / RANSAC ? )
+- Setup pipeline and visualization 
+- Triangulation and PNP
