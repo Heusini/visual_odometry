@@ -21,3 +21,4 @@ dependencies:
       - scipy==1.7.3
       - six==1.16.0
       - typing-extensions==4.3.0
+      - tqdm==4.62.3
