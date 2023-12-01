@@ -8,23 +8,15 @@ def main():
     I_0 = 0
     I_1 = 1    
 
-    imgs = []
-    for filename in os.listdir(DATAPATH):
-        if filename.endswith('.png'):
-            img = cv2.imread(DATAPATH + filename)
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            imgs.append(img)
-
-    imgs = np.array(imgs)
+    imgs = vo.helpers.load_images(DATAPATH)
 
     print(imgs.shape)
     imgs_subarray = imgs[I_0:I_1]
 
-    frame_state = vo.initialization(imgs_subarray)
+    frame_state = vo.initialization(imgs_subarray, I_1)
 
-    for i in range(I_1, imgs.shape[0]):
-        print(i)
-        # TODO: make sure indices here are right !
+    # continuous operation
+    for i in range(I_1 + 1, imgs.shape[0]):
         frame_state = vo.process_frame(frame_state, imgs[i-1], imgs[i])
 
 

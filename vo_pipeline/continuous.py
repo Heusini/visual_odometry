@@ -6,8 +6,7 @@ class FrameState(NamedTuple):
     iteration : int
     keypoints : np.ndarray # keypoints in the camera frame
     landmarks : np.ndarray # keypoints in the world frame
-    candidate_keypoints : np.ndarray
-
+    # TODO: extend as described in 4.3
 
 def process_frame(
     state_prev : FrameState,
