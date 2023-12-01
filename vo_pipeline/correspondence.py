@@ -15,9 +15,8 @@ def correspondence(imgs : np.ndarray) -> (np.ndarray, np.ndarray):
 
     Returns
     -------
-    np.ndarray
-        Shape is (K, 2, 2) because for each keypoint we its uv coordinates
-        in the first and last image.
+    (np.ndarray, np.ndarray) 
+        Two arrays of shape (K, 2) where K is the number of keypoints.
     """
 
     return np.random.rand(10, 2), np.random.rand(10, 2)
