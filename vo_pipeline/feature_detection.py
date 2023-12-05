@@ -14,7 +14,6 @@ def feature_matching(des1, des2, threshold=0.75):
     bf = cv.BFMatcher()
     matches = bf.knnMatch(des1, des2, k=2)
 
-    print(len(matches))
     good = []
     for m, n in matches:
         if m.distance < threshold * n.distance:

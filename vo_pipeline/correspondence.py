@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+
 from feature_detection import feature_detection, feature_matching
 from helpers import load_images
 
@@ -38,8 +39,6 @@ def correspondence(imgs: np.ndarray) -> (np.ndarray, np.ndarray):
 
     p1 = np.stack((p1_x, p1_y), axis=-1)
     p2 = np.stack((p2_x, p2_y), axis=-1)
-    print(p1.shape)
-    print(p2.shape)
     return p1, p2
 
 
