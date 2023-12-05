@@ -3,14 +3,14 @@ import numpy as np
 
 
 def feature_detection(img):
-    gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+    # gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
     sift = cv.SIFT_create()
-    kp, des = sift.detectAndCompute(gray, None)
+    kp, des = sift.detectAndCompute(img, None)
 
     return kp, des
 
 
-def feature_matching(des1, des2, threshold):
+def feature_matching(des1, des2, threshold=0.75):
     bf = cv.BFMatcher()
     matches = bf.knnMatch(des1, des2, k=2)
 

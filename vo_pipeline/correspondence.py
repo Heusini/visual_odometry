@@ -1,8 +1,12 @@
+import matplotlib.pyplot as plt
 import numpy as np
+from feature_detection import feature_detection, feature_matching
+from helpers import load_images
 
-def correspondence(imgs : np.ndarray) -> (np.ndarray, np.ndarray):
+
+def correspondence(imgs: np.ndarray) -> (np.ndarray, np.ndarray):
     """
-    Associated task: 
+    Associated task:
 
         3.2. Establish keypoint correspondences between these two frames using either patch matching
         (exercise 3) or KLT (exercise 8, consider using the intermediate frames as well).
@@ -15,20 +19,32 @@ def correspondence(imgs : np.ndarray) -> (np.ndarray, np.ndarray):
 
     Returns
     -------
-    (np.ndarray, np.ndarray) 
+    (np.ndarray, np.ndarray)
         Two arrays of shape (K, 2) where K is the number of keypoints.
     """
+    kp1, des1 = feature_detection(imgs[0])
+    kp2, des2 = feature_detection(imgs[1])
 
-    return np.random.rand(10, 2), np.random.rand(10, 2)
+    matches = feature_matching(des1, des2)
+    x_values1 = [kp1[m.queryIdx].pt[0] for m in matches]
+    y_values1 = [kp1[m.queryIdx].pt[1] for m in matches]
+    x_values2 = [kp2[m.trainIdx].pt[0] for m in matches]
+    y_values2 = [kp2[m.trainIdx].pt[1] for m in matches]
 
-    import correspondence as co
+    p1_x = np.asarray(x_values1)
+    p1_y = np.asarray(y_values1)
+    p2_x = np.asarray(x_values2)
+    p2_y = np.asarray(y_values2)
 
-import matplotlib.pyplot as plt
-import numpy as np
-from helpers import load_images
+    p1 = np.stack((p1_x, p1_y), axis=-1)
+    p2 = np.stack((p2_x, p2_y), axis=-1)
+    print(p1.shape)
+    print(p2.shape)
+    return p1, p2
+
 
 def visualize_correspondence():
-    imgs = load_images('data/kitti/05/image_0/', start=0, end=2)
+    imgs = load_images("data/kitti/05/image_0/", start=0, end=2)
 
     keypoints_a, keypoints_b = correspondence(imgs)
 
@@ -40,8 +56,12 @@ def visualize_correspondence():
         p_a_y = int(keypoints_a[i, 1]) * imgs.shape[2]
         p_b_x = int(keypoints_b[i, 0]) * imgs.shape[1]
         p_b_y = int(keypoints_b[i, 1]) * imgs.shape[2]
-        axs[0, i].imshow(imgs[0, p_a_x-s:p_a_x+s, p_a_y-s:p_a_y+s], cmap='gray')
-        axs[1, i].imshow(imgs[-1, p_b_x-s:p_b_x+s, p_b_y-s:p_b_y+s], cmap='gray')
+        axs[0, i].imshow(
+            imgs[0, p_a_x - s : p_a_x + s, p_a_y - s : p_a_y + s], cmap="gray"
+        )
+        axs[1, i].imshow(
+            imgs[-1, p_b_x - s : p_b_x + s, p_b_y - s : p_b_y + s], cmap="gray"
+        )
 
     plt.show()
 
@@ -49,14 +69,29 @@ def visualize_correspondence():
     both_imgs = np.hstack((imgs[0], imgs[1]))
 
     # plot all keypoints
-    plt.imshow(both_imgs, cmap='gray')
-    plt.scatter(keypoints_a[:, 1]  * imgs.shape[2], keypoints_a[:, 0] * imgs.shape[1], c='r')
-    plt.scatter(keypoints_b[:, 1] * imgs.shape[2] + imgs.shape[2], keypoints_b[:, 0] * imgs.shape[1], c='r')
+    plt.imshow(both_imgs, cmap="gray")
+    plt.scatter(
+        keypoints_a[:, 1] * imgs.shape[2], keypoints_a[:, 0] * imgs.shape[1], c="r"
+    )
+    plt.scatter(
+        keypoints_b[:, 1] * imgs.shape[2] + imgs.shape[2],
+        keypoints_b[:, 0] * imgs.shape[1],
+        c="r",
+    )
 
     # add lines between keypoints
     for i in range(keypoints_a.shape[0]):
-        plt.plot([keypoints_a[i, 1] * imgs.shape[2], keypoints_b[i, 1] * imgs.shape[2] + imgs.shape[2]], [keypoints_a[i, 0] * imgs.shape[1], keypoints_b[i, 0] * imgs.shape[1]], c='r')
+        plt.plot(
+            [
+                keypoints_a[i, 1] * imgs.shape[2],
+                keypoints_b[i, 1] * imgs.shape[2] + imgs.shape[2],
+            ],
+            [keypoints_a[i, 0] * imgs.shape[1], keypoints_b[i, 0] * imgs.shape[1]],
+            c="r",
+        )
 
     plt.show()
 
-visualize_correspondence()
+
+if __name__ == "__main__":
+    visualize_correspondence()
