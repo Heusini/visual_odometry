@@ -1,4 +1,6 @@
+import cv2 as cv
 import numpy as np
+
 
 def sfm(
     keypoints_a: np.ndarray,
@@ -35,5 +37,4 @@ def sfm(
     K_b : np.ndarray
         Camera intrinsics for second image
     """
-    
     pass
