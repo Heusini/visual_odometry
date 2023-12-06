@@ -28,7 +28,7 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
     from matplotlib.patches import ConnectionPatch
 
-    show_lines = False
+    show_lines = True
     show_sift_features = False
 
     img1 = cv.imread("data/kitti/05/image_0/000000.png")
