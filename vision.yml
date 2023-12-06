@@ -6,6 +6,7 @@ dependencies:
   - python==3.8.5
   - requests
   - clint
+  - plotly==5.18
   - pip
   - pip:
       - cycler==0.11.0
