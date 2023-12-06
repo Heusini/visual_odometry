@@ -40,7 +40,7 @@ if __name__ == "__main__":
     kp2, des2 = feature_detection(img2)
     t3 = time.time()
 
-    good = feature_matching(des1, des2, 0.9)
+    good = feature_matching(des1, des2, 0.6)
     t4 = time.time()
     print(f"Calculating features img1 took: {t2-t1}")
     print(f"Calculating features img2 took: {t3-t2}")
