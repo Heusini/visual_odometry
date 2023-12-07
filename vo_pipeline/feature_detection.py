@@ -10,7 +10,7 @@ def feature_detection(img):
     return kp, des
 
 
-def feature_matching(des1, des2, threshold=0.75):
+def feature_matching(des1, des2, threshold=0.99):
     bf = cv.BFMatcher()
     matches = bf.knnMatch(des1, des2, k=2)
 
@@ -28,11 +28,11 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
     from matplotlib.patches import ConnectionPatch
 
-    show_lines = True
-    show_sift_features = False
+    show_lines = False
+    show_sift_features = True
 
     img1 = cv.imread("data/kitti/05/image_0/000000.png")
-    img2 = cv.imread("data/kitti/05/image_0/000100.png")
+    img2 = cv.imread("data/kitti/05/image_0/000003.png")
 
     t1 = time.time()
     kp1, des1 = feature_detection(img1)

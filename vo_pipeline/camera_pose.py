@@ -1,21 +1,39 @@
+from typing import List
+
 import cv2 as cv
 import numpy as np
 from exercise_helpers.decompose_essential_matrix import decomposeEssentialMatrix
 from exercise_helpers.disambiguate_relative_pose import disambiguateRelativePose
+from exercise_helpers.normalise_2D_pts import normalise2DPts
+
+
+class Camera:
+    def __init__(self, rotation, translation, K, name):
+        self.name = name
+        self.rotation = rotation
+        self.translation = translation
+        self.K = K
 
 
 def get_fundamental_matrix(keypoints_a, keypoints_b):
     fundamental_mat, mask = cv.findFundamentalMat(
-        keypoints_a, keypoints_b, cv.FM_RANSAC, 3, 0.99
+        keypoints_a, keypoints_b, cv.FM_8POINT, 3, 0.99
     )
     return fundamental_mat, mask
+
+
+def get_essential_matrix(point_a, point_b, K):
+    print(point_a.shape)
+    print(point_b.shape)
+    essential_mat, _ = cv.findEssentialMat(point_a, point_b, K, cv.RANSAC, 0.99, 2)
+    return essential_mat
 
 
 def essential_matrix_from_fundamental_matrix(fundamental_mat, K):
     return K.T @ fundamental_mat @ K
 
 
-def plot_plotly(P, cameras):
+def plot_plotly(P, cameras: List[Camera]):
     import plotly.graph_objects as go
 
     plotly_fig = go.Figure()
@@ -36,7 +54,12 @@ def plot_plotly(P, cameras):
     count = 0
     for camera in cameras:
         camera_wireframe = draw_camera_wireframe(
-            camera[0], camera[1], 20, 10, camera[2], colors[count]
+            camera.rotation,
+            camera.translation,
+            5,
+            2,
+            camera.name,
+            colors[count],
         )
         count = (count + 1) % len(colors)
         for line in camera_wireframe:
@@ -125,7 +148,14 @@ if __name__ == "__main__":
     from exercise_helpers.linear_triangulation import linearTriangulation
     from helpers import load_images
 
-    imgs = load_images("data/kitti/05/image_0/", start=0, end=2)
+    imgs = []
+    # imgs = load_images("data/kitti/05/image_0/", start=0, end=2)
+    img1 = cv.imread("data/kitti/05/image_0/000000.png")
+    img2 = cv.imread("data/kitti/05/image_0/000001.png")
+    img1 = cv.cvtColor(img1, cv.COLOR_BGR2GRAY)
+    img2 = cv.cvtColor(img2, cv.COLOR_BGR2GRAY)
+    imgs.append(img1)
+    imgs.append(img2)
     K = np.array(
         [
             [7.188560000000e02, 0, 6.071928000000e02],
@@ -136,11 +166,18 @@ if __name__ == "__main__":
     keypoints_a, keypoints_b = correspondence(imgs)
 
     t1 = time.time()
-    fundamental_mat, _ = get_fundamental_matrix(keypoints_a, keypoints_b)
-    essential_mat = essential_matrix_from_fundamental_matrix(fundamental_mat, K)
-    Rots, u3 = decomposeEssentialMatrix(essential_mat)
+
     p1 = np.hstack([keypoints_a, np.ones((keypoints_a.shape[0], 1))]).T
     p2 = np.hstack([keypoints_b, np.ones((keypoints_b.shape[0], 1))]).T
+    normalized_p1, T1 = normalise2DPts(p1)
+    normalized_p2, T2 = normalise2DPts(p2)
+
+    print(K.shape)
+    E = get_essential_matrix(keypoints_a, keypoints_b, K)
+
+    # E = T2.T @ E @ T1
+
+    Rots, u3 = decomposeEssentialMatrix(E)
     t2 = time.time()
     R_C2_W, T_C2_W = disambiguateRelativePose(Rots, u3, p1, p2, K, K)
     t3 = time.time()
@@ -162,8 +199,8 @@ if __name__ == "__main__":
     P = linearTriangulation(p1, p2, M1, M2)
 
     cameras = []
-    cameras.append((np.eye(3, 3), np.zeros(3), "Cam 1"))
-    cameras.append((R_C2_W, T_C2_W, "Cam 2"))
+    cameras.append(Camera(np.eye(3, 3), np.zeros(3), K, "Cam 1"))
+    cameras.append(Camera(R_C2_W, T_C2_W, K, "Cam 2"))
 
     plot_plotly(P, cameras)
 
