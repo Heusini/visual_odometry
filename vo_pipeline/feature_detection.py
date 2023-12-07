@@ -27,13 +27,20 @@ if __name__ == "__main__":
 
     import matplotlib.pyplot as plt
     from matplotlib.patches import ConnectionPatch
+    from helpers import load_images
 
     show_lines = False
     show_sift_features = True
 
+<<<<<<< HEAD
     img1 = cv.imread("data/kitti/05/image_0/000000.png")
     img2 = cv.imread("data/kitti/05/image_0/000003.png")
 
+=======
+    imgs = load_images("data/kitti/05/image_0/", start=1, end=3)
+    img1 = imgs[0]
+    img2 = imgs[-1]
+>>>>>>> 52be1a24423a98c68dfa65c390d0fabb76d79b2d
     t1 = time.time()
     kp1, des1 = feature_detection(img1)
     t2 = time.time()
