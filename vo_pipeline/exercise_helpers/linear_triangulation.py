@@ -1,5 +1,4 @@
 import numpy as np
-
 from exercise_helpers.utils import cross2Matrix
 
 

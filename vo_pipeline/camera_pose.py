@@ -25,7 +25,7 @@ def get_fundamental_matrix(keypoints_a, keypoints_b):
 def get_essential_matrix(point_a, point_b, K):
     print(point_a.shape)
     print(point_b.shape)
-    essential_mat, _ = cv.findEssentialMat(point_a, point_b, K, cv.RANSAC, 0.99, 2)
+    essential_mat, _ = cv.findEssentialMat(point_a, point_b, K, cv.RANSAC, 0.95, 5)
     return essential_mat
 
 
@@ -67,7 +67,7 @@ def plot_plotly(P, cameras: List[Camera]):
     plotly_fig.show()
 
 
-def draw_camera_wireframe(rotation, center, f, size, cam_name, color="black"):
+def draw_camera_wireframe(rotation, translation, f, size, cam_name, color="black"):
     import plotly.graph_objects as go
 
     p1_c = np.array([-size / 2, -size / 2, f])
@@ -75,10 +75,10 @@ def draw_camera_wireframe(rotation, center, f, size, cam_name, color="black"):
     p3_c = np.array([size / 2, size / 2, f])
     p4_c = np.array([-size / 2, size / 2, f])
 
-    p1_w = np.linalg.inv(rotation) @ (p1_c - center)
-    p2_w = np.linalg.inv(rotation) @ (p2_c - center)
-    p3_w = np.linalg.inv(rotation) @ (p3_c - center)
-    p4_w = np.linalg.inv(rotation) @ (p4_c - center)
+    p1_w = rotation @ (p1_c + translation)
+    p2_w = rotation @ (p2_c + translation)
+    p3_w = rotation @ (p3_c + translation)
+    p4_w = rotation @ (p4_c + translation)
 
     # draw camera wireframe
     camera_wireframe = go.Scatter3d(
@@ -93,9 +93,9 @@ def draw_camera_wireframe(rotation, center, f, size, cam_name, color="black"):
     )
 
     center_line1 = go.Scatter3d(
-        x=[center[0], p1_w[0]],
-        y=[center[1], p1_w[1]],
-        z=[center[2], p1_w[2]],
+        x=[translation[0], p1_w[0]],
+        y=[translation[1], p1_w[1]],
+        z=[translation[2], p1_w[2]],
         mode="lines",
         name="line1",
         line=dict(color=color, width=4),
@@ -103,9 +103,9 @@ def draw_camera_wireframe(rotation, center, f, size, cam_name, color="black"):
         showlegend=False,
     )
     center_line2 = go.Scatter3d(
-        x=[center[0], p2_w[0]],
-        y=[center[1], p2_w[1]],
-        z=[center[2], p2_w[2]],
+        x=[translation[0], p2_w[0]],
+        y=[translation[1], p2_w[1]],
+        z=[translation[2], p2_w[2]],
         mode="lines",
         name="line2",
         line=dict(color=color, width=4),
@@ -113,9 +113,9 @@ def draw_camera_wireframe(rotation, center, f, size, cam_name, color="black"):
         showlegend=False,
     )
     center_line3 = go.Scatter3d(
-        x=[center[0], p3_w[0]],
-        y=[center[1], p3_w[1]],
-        z=[center[2], p3_w[2]],
+        x=[translation[0], p3_w[0]],
+        y=[translation[1], p3_w[1]],
+        z=[translation[2], p3_w[2]],
         mode="lines",
         name="line3",
         line=dict(color=color, width=4),
@@ -123,9 +123,9 @@ def draw_camera_wireframe(rotation, center, f, size, cam_name, color="black"):
         showlegend=False,
     )
     center_line4 = go.Scatter3d(
-        x=[center[0], p4_w[0]],
-        y=[center[1], p4_w[1]],
-        z=[center[2], p4_w[2]],
+        x=[translation[0], p4_w[0]],
+        y=[translation[1], p4_w[1]],
+        z=[translation[2], p4_w[2]],
         mode="lines",
         name="line4",
         line=dict(color=color, width=4),
@@ -150,19 +150,24 @@ if __name__ == "__main__":
 
     imgs = []
     # imgs = load_images("data/kitti/05/image_0/", start=0, end=2)
-    img1 = cv.imread("data/kitti/05/image_0/000000.png")
-    img2 = cv.imread("data/kitti/05/image_0/000001.png")
+    # img1 = cv.imread("data/kitti/05/image_0/000000.png")
+    # img2 = cv.imread("data/kitti/05/image_0/000003.png")
+    img1 = cv.imread("data/parking/images/img_00000.png")
+    img2 = cv.imread("data/parking/images/img_00003.png")
     img1 = cv.cvtColor(img1, cv.COLOR_BGR2GRAY)
     img2 = cv.cvtColor(img2, cv.COLOR_BGR2GRAY)
     imgs.append(img1)
     imgs.append(img2)
-    K = np.array(
+    K_kitty = np.array(
         [
             [7.188560000000e02, 0, 6.071928000000e02],
             [0, 7.188560000000e02, 1.852157000000e02],
             [0, 0, 1],
         ]
     )
+    K_parking = np.array([[331.37, 0, 320], [0, 369.568, 240], [0, 0, 1]])
+    K = K_parking
+    imgs = np.asarray(imgs)
     keypoints_a, keypoints_b = correspondence(imgs)
 
     t1 = time.time()
@@ -172,10 +177,7 @@ if __name__ == "__main__":
     normalized_p1, T1 = normalise2DPts(p1)
     normalized_p2, T2 = normalise2DPts(p2)
 
-    print(K.shape)
     E = get_essential_matrix(keypoints_a, keypoints_b, K)
-
-    # E = T2.T @ E @ T1
 
     Rots, u3 = decomposeEssentialMatrix(E)
     t2 = time.time()
@@ -187,23 +189,25 @@ if __name__ == "__main__":
     print(f"Roataion: {R_C2_W}")
     print(f"Translation: {T_C2_W}")
 
-    # plot keypoints from top view and camera
-    import matplotlib.pyplot as plt
-    from exercise_helpers.arrow_3d import Arrow3D
-
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection="3d")
-
     M1 = K @ np.eye(3, 4)
     M2 = K @ np.c_[R_C2_W, T_C2_W]
     P = linearTriangulation(p1, p2, M1, M2)
 
     cameras = []
+
+    # this is R @ -T = C2_W_Center
+    center_cam2_W = -R_C2_W.T @ T_C2_W
     cameras.append(Camera(np.eye(3, 3), np.zeros(3), K, "Cam 1"))
-    cameras.append(Camera(R_C2_W, T_C2_W, K, "Cam 2"))
+    cameras.append(Camera(R_C2_W, center_cam2_W, K, "Cam 2"))
 
     plot_plotly(P, cameras)
 
+    # # plot keypoints from top view and camera
+    # import matplotlib.pyplot as plt
+    # from exercise_helpers.arrow_3d import Arrow3D
+
+    # fig = plt.figure()
+    # ax = fig.add_subplot(111, projection="3d")
     # ax.scatter(P[0, :], P[1, :], P[2, :], marker="o", s=4)
     # ax.set_xlabel("X Label")
     # ax.set_ylabel("Y Label")
