@@ -37,7 +37,7 @@ if __name__ == "__main__":
     #     img2 = cv.imread("data/kitti/05/image_0/000003.png")
     #
     # =======
-    imgs = load_images("data/kitti/05/image_0/", start=1, end=3)
+    imgs = load_images("data/parking/images/", start=1, end=3)
     img1 = imgs[0]
     img2 = imgs[-1]
     t1 = time.time()
