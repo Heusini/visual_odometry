@@ -23,7 +23,7 @@ def get_fundamental_matrix(keypoints_a, keypoints_b):
 
 
 def get_essential_matrix(point_a, point_b, K):
-    essential_mat, _ = cv.findEssentialMat(point_a, point_b, K, cv.RANSAC, 0.95, 5)
+    essential_mat, _ = cv.findEssentialMat(point_a, point_b, K, cv.RANSAC, 0.99, 1)
     return essential_mat
 
 
@@ -73,10 +73,13 @@ def draw_camera_wireframe(rotation, translation, f, size, cam_name, color="black
     p3_c = np.array([size / 2, size / 2, f])
     p4_c = np.array([-size / 2, size / 2, f])
 
-    p1_w = np.linalg.inv(rotation) @ (p1_c - translation[:, 0])
-    p2_w = np.linalg.inv(rotation) @ (p2_c - translation[:, 0])
-    p3_w = np.linalg.inv(rotation) @ (p3_c - translation[:, 0])
-    p4_w = np.linalg.inv(rotation) @ (p4_c - translation[:, 0])
+    p1_w = rotation.T @ (p1_c - translation[:, 0])
+    p2_w = rotation.T @ (p2_c - translation[:, 0])
+    p3_w = rotation.T @ (p3_c - translation[:, 0])
+    p4_w = rotation.T @ (p4_c - translation[:, 0])
+
+    center_point = rotation.T @ (-translation[:, 0])
+    print(center_point.shape)
 
     # draw camera wireframe
     camera_wireframe = go.Scatter3d(
@@ -91,9 +94,9 @@ def draw_camera_wireframe(rotation, translation, f, size, cam_name, color="black
     )
 
     center_line1 = go.Scatter3d(
-        x=[translation[0, 0], p1_w[0]],
-        y=[translation[1, 0], p1_w[1]],
-        z=[translation[2, 0], p1_w[2]],
+        x=[center_point[0], p1_w[0]],
+        y=[center_point[1], p1_w[1]],
+        z=[center_point[2], p1_w[2]],
         mode="lines",
         name=cam_name + "line1",
         line=dict(color=color, width=4),
@@ -101,9 +104,9 @@ def draw_camera_wireframe(rotation, translation, f, size, cam_name, color="black
         showlegend=False,
     )
     center_line2 = go.Scatter3d(
-        x=[translation[0, 0], p2_w[0]],
-        y=[translation[1, 0], p2_w[1]],
-        z=[translation[2, 0], p2_w[2]],
+        x=[center_point[0], p2_w[0]],
+        y=[center_point[1], p2_w[1]],
+        z=[center_point[2], p2_w[2]],
         mode="lines",
         name=cam_name + "line2",
         line=dict(color=color, width=4),
@@ -111,9 +114,9 @@ def draw_camera_wireframe(rotation, translation, f, size, cam_name, color="black
         showlegend=False,
     )
     center_line3 = go.Scatter3d(
-        x=[translation[0, 0], p3_w[0]],
-        y=[translation[1, 0], p3_w[1]],
-        z=[translation[2, 0], p3_w[2]],
+        x=[center_point[0], p3_w[0]],
+        y=[center_point[1], p3_w[1]],
+        z=[center_point[2], p3_w[2]],
         mode="lines",
         name=cam_name + "line3",
         line=dict(color=color, width=4),
@@ -121,9 +124,9 @@ def draw_camera_wireframe(rotation, translation, f, size, cam_name, color="black
         showlegend=False,
     )
     center_line4 = go.Scatter3d(
-        x=[translation[0, 0], p4_w[0]],
-        y=[translation[1, 0], p4_w[1]],
-        z=[translation[2, 0], p4_w[2]],
+        x=[center_point[0], p4_w[0]],
+        y=[center_point[1], p4_w[1]],
+        z=[center_point[2], p4_w[2]],
         mode="lines",
         name=cam_name + "line4",
         line=dict(color=color, width=4),
@@ -217,10 +220,10 @@ if __name__ == "__main__":
 
     # this is R @ -T = C2_W_Center
     center_cam2_W = -R_C2_W.T @ T_C2_W
-    center_cam2_W = center_cam2_W.reshape((3, 1))
+    T_C2_W = T_C2_W.reshape((3, 1))
     print(f"Center of camera 2 in world coordinates: {center_cam2_W}")
     cameras.append(Camera(np.eye(3, 3), np.zeros((3, 1)), K, "Cam 1"))
-    cameras.append(Camera(R_C2_W.T, center_cam2_W, K, "Cam 2"))
+    cameras.append(Camera(R_C2_W, T_C2_W, K, "Cam 2"))
 
     plot_plotly(P, cameras)
 
