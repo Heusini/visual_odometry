@@ -6,56 +6,14 @@ import plotly.graph_objects as go
 from dash import Dash, dcc, html, Input, Output, callback, State
 import plotly
 
-from continuous import process_frame, FrameState
+from continuous import process_frame
 from correspondence import correspondence
 from sfm import sfm
 import helpers
 
-# Multiple components can update everytime interval gets fired.
-@callback(
-    Output('update_graph', 'figure'),
-    Input('interval-component', 'n_intervals'),
-    [
-        State("badges", "children"), 
-        State("session", "data")
-    ],
-)
-def update_graph(n, state, session_cache):
+DATAPATH = 'data/kitti/05/image_0/'
 
-    print(state)
-
-    if n == 1:
-        init_state = init_state()
-
-
-    # Create the graph with subplots
-    fig = plotly.tools.make_subplots(rows=2, cols=1, vertical_spacing=0.2)
-    fig['layout']['margin'] = {
-        'l': 30, 'r': 10, 'b': 30, 't': 10
-    }
-    fig['layout']['legend'] = {'x': 0, 'y': 1, 'xanchor': 'left'}
-
-    fig.append_trace({
-        'x': frame_state.keypoints[:,0],
-        'y': frame_state.keypoints[:,1],
-        'name': 'Altitude',
-        'mode': 'lines+markers',
-        'type': 'scatter'
-    }, 1, 1)
-
-    # fig.append_trace({
-    #     'x': data['Longitude'],
-    #     'y': data['Latitude'],
-    #     'text': data['time'],
-    #     'name': 'Longitude vs Latitude',
-    #     'mode': 'lines+markers',
-    #     'type': 'scatter'
-    # }, 2, 1)
-
-    return fig
-
-def init_state() -> FrameState:
-    DATAPATH = 'data/kitti/05/image_0/'
+def init_state() -> dict:
     I_0 = 1
     I_1 = 4    
 
@@ -67,49 +25,128 @@ def init_state() -> FrameState:
         ]
     )
 
-    imgs = helpers.load_images(DATAPATH)
+    imgs = helpers.load_images(DATAPATH, start=I_0, end=I_1)
 
-    print(imgs.shape)
-    imgs_subarray = imgs[I_0:I_1]
-
-    (kp_a, kp_b), (des_a, des_b) = correspondence(imgs_subarray)
-
-    print(kp_a.shape, kp_b.shape)
+    (kp_a, kp_b), (des_a, des_b) = correspondence(imgs, 0.9)
 
     landmarks, camera_a, camera_b = sfm(kp_a, kp_b, K)
 
-    return FrameState(I_1, kp_b, des_b, landmarks, camera_b)
+    return {
+        'K' : K,
+        'img' : imgs[-1],
+        'iteration' : 0,
+        'keypoints' : kp_b,
+        'descriptors' : des_b,
+        'landmarks' : landmarks,
+        'camera_rotation' : camera_b.rotation,
+        'camera_translation' : camera_b.translation,
+    }
 
 def pipeline():
+    print("Initializing state...")
+    state = init_state()
+    print("State initialized.")
     app = Dash(__name__)
     app.layout = html.Div([
-        html.H4('TERRA Satellite Live Feed'),
+        html.H4('VISUAL ODOMETRY PIPELINE'),
         html.Div(id='live-update-text'),
-        dcc.Graph(id='live-update-graph'),
+        dcc.Graph(id='update_graph'),
+        dcc.Store(
+            id="frame_state", 
+            storage_type='memory', 
+            data=state),
         dcc.Interval(
             id='interval-component',
-            interval=1*1000, # in milliseconds
+            interval=1000, # in milliseconds
             n_intervals=0
         ),
-        # The memory store reverts to the default on every page refresh
-        dcc.Store(id="memory"),
-        # The local store will take the initial data
-        # only the first time the page is loaded
-        # and keep it until it is cleared.
-        dcc.Store(id="local", storage_type="local"),
-        # Same as the local store but will lose the data
-        # when the browser/tab closes.
-        dcc.Store(id="session", storage_type="session"),
     ])
 
     app.run(debug=True)
 
 
-    # continuous operation
-    for i in range(I_1 + 1, imgs.shape[0]):
-        print(f"Processing frame {i}")
-        frame_state = process_frame(frame_state, imgs[i], K)
+    # # continuous operation
+    # for i in range(I_1 + 1, imgs.shape[0]):
+    #     print(f"Processing frame {i}")
+    #     frame_state = process_frame(frame_state, imgs[i], K)
 
+
+# Multiple components can update everytime interval gets fired.
+@callback(
+    [ # output
+        Output('update_graph', 'figure'),
+        Output('frame_state', 'data'),
+    ],
+    [ # input
+        Input('interval-component', 'n_intervals'),
+        # Input('frame_state', 'data'),
+    ],
+    [
+        State("frame_state", "data")
+    ],
+)
+def update_graph(n, data):
+
+    kp = np.array(data['keypoints'])
+    landmarks = np.array(data['landmarks'])
+    img = np.array(data['img'])
+    camera_translation = np.array(data['camera_translation'])
+    camera_rotation = np.array(data['camera_rotation'])
+
+    # Create the graph with subplots
+    fig = plotly.tools.make_subplots(rows=1, cols=2, vertical_spacing=0.2)
+    # plot some random data
+    fig.append_trace(go.Scatter(
+        x=kp[:, 0],
+        y=kp[:, 1],
+        name='Keypoints',
+        mode='markers',
+    ), row=1, col=1)
+    #plot image behind the scatter plot
+    # fig.add_layout_image(
+    #     dict(
+    #         source=img,
+    #         xref="x",
+    #         yref="y",
+    #         x=0,
+    #         y=0,
+    #         sizex=1,
+    #         sizey=1,
+    #         sizing="contain",
+    #         opacity=0.5,
+    #         layer="below",
+    #     )
+    # )
+
+    # fig.append_trace(go.Scatter(
+    #     x=[0, 1],
+    #     y=[0, 1],
+    #     name='Landmarks',
+    #     mode='markers',
+    # ), row=1, col=2)
+
+    fig.append_trace(go.Scatter(
+        x=landmarks[:, 0],
+        y=landmarks[:, 1],
+        name='Landmarks',
+        mode='markers',
+    ), row=1, col=2)
+
+    # # add camera position
+    # fig.append_trace(go.Scatter(
+    #     x=[camera_translation[0]],
+    #     y=[camera_translation[1]],
+    #     name='Camera',
+    #     mode='markers',
+    # ), row=1, col=2)
+
+    img_id = data['iteration']
+
+    next_image = helpers.load_images(DATAPATH, start=img_id, end=img_id + 1)[0]
+    print(next_image.shape)
+    data = process_frame(data, next_image)
+
+    return fig, data
 
 if __name__ == '__main__':
     pipeline()
