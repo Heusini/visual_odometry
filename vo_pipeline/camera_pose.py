@@ -17,7 +17,7 @@ class Camera:
 
 def get_fundamental_matrix(keypoints_a, keypoints_b):
     fundamental_mat, mask = cv.findFundamentalMat(
-        keypoints_a, keypoints_b, cv.FM_8POINT, 3, 0.99
+        keypoints_a, keypoints_b, cv.RANSAC, 3, 0.99
     )
     return fundamental_mat, mask
 
@@ -152,9 +152,9 @@ if __name__ == "__main__":
     imgs = []
     # imgs = load_images("data/kitti/05/image_0/", start=0, end=2)
     # img1 = cv.imread("data/kitti/05/image_0/000000.png")
-    # img2 = cv.imread("data/kitti/05/image_0/000003.png")
+    # img2 = cv.imread("data/kitti/05/image_0/000004.png")
     img1 = cv.imread("data/parking/images/img_00000.png")
-    img2 = cv.imread("data/parking/images/img_00005.png")
+    img2 = cv.imread("data/parking/images/img_00003.png")
     img1 = cv.cvtColor(img1, cv.COLOR_BGR2GRAY)
     img2 = cv.cvtColor(img2, cv.COLOR_BGR2GRAY)
     imgs.append(img1)
@@ -173,29 +173,12 @@ if __name__ == "__main__":
 
     t1 = time.time()
 
-    # p1 = keypoints_a
-    # p2 = keypoints_b
-
-    # p1 = np.hstack([keypoints_a, np.ones((keypoints_a.shape[0], 1))]).T
-    # p2 = np.hstack([keypoints_b, np.ones((keypoints_b.shape[0], 1))]).T
-    # normalized_p1, T1 = normalise2DPts(p1)
-    # normalized_p1 = normalized_p1[:2, :]
-    # normalized_p2, T2 = normalise2DPts(p2)
-    # normalized_p2 = normalized_p2[:2, :]
-
     p1 = np.hstack([keypoints_a, np.ones((keypoints_a.shape[0], 1))]).T
     p2 = np.hstack([keypoints_b, np.ones((keypoints_b.shape[0], 1))]).T
-    p1_norm, T1 = normalise2DPts(p1)
-    p2_norm, T2 = normalise2DPts(p2)
 
-    p1_norm = p1_norm[:2, :]
-    p2_norm = p2_norm[:2, :]
-    p1_norm = p1_norm.T
-    p2_norm = p2_norm.T
     print(f"p1: {p1.shape}")
-    E = get_essential_matrix(p1_norm, p2_norm, K)
-    E = T2.T @ E @ T1
-    # print(f"Essential Matrix: {E}")
+    F, _ = get_fundamental_matrix(p1[:2, :].T, p2[:2, :].T)
+    E = essential_matrix_from_fundamental_matrix(F, K)
 
     Rots, u3 = decomposeEssentialMatrix(E)
     t2 = time.time()
@@ -212,6 +195,8 @@ if __name__ == "__main__":
 
     M1 = K @ np.eye(3, 4)
     M2 = K @ np.c_[R_C2_W, T_C2_W]
+    print(f"Camera matrix 1: {M1}")
+    print(f"Camera matrix 2: {M2}")
     P = linearTriangulation(p1, p2, M1, M2)
 
     cameras = []
@@ -219,9 +204,9 @@ if __name__ == "__main__":
     print(f"Camera 2: {M2}")
 
     # this is R @ -T = C2_W_Center
-    center_cam2_W = -R_C2_W.T @ T_C2_W
+    T_W_C2 = -R_C2_W.T @ T_C2_W
     T_C2_W = T_C2_W.reshape((3, 1))
-    print(f"Center of camera 2 in world coordinates: {center_cam2_W}")
+    print(f"Center of camera 2 in world coordinates: {T_W_C2}")
     cameras.append(Camera(np.eye(3, 3), np.zeros((3, 1)), K, "Cam 1"))
     cameras.append(Camera(R_C2_W, T_C2_W, K, "Cam 2"))
 
