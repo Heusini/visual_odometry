@@ -36,6 +36,7 @@ def init_state() -> dict:
         'img' : imgs[-1],
         'iteration' : 0,
         'keypoints' : kp_b,
+        'keypoints_prev' : kp_a,
         'descriptors' : des_b,
         'landmarks' : landmarks,
         'camera_rotation' : camera_b.rotation,
@@ -53,23 +54,16 @@ def pipeline():
         dcc.Graph(id='update_graph'),
         dcc.Store(
             id="frame_state", 
-            storage_type='memory', 
+            storage_type='local', 
             data=state),
         dcc.Interval(
             id='interval-component',
-            interval=1000, # in milliseconds
+            interval=200, # in milliseconds
             n_intervals=0
         ),
     ])
 
-    app.run(debug=True)
-
-
-    # # continuous operation
-    # for i in range(I_1 + 1, imgs.shape[0]):
-    #     print(f"Processing frame {i}")
-    #     frame_state = process_frame(frame_state, imgs[i], K)
-
+    app.run(debug=True, use_reloader=True)
 
 # Multiple components can update everytime interval gets fired.
 @callback(
@@ -88,6 +82,7 @@ def pipeline():
 def update_graph(n, data):
 
     kp = np.array(data['keypoints'])
+    kp_prev = np.array(data['keypoints_prev'])
     landmarks = np.array(data['landmarks'])
     img = np.array(data['img'])
     camera_translation = np.array(data['camera_translation'])
@@ -101,12 +96,30 @@ def update_graph(n, data):
     # plot some random data
     # invert y axis of kps and image
     kp[:, 1] = img_y - kp[:, 1]
+    kp_prev[:, 1] = img_y - kp_prev[:, 1]
     img = np.flip(img, axis=0)
+    fig.append_trace(go.Scatter(
+        x=kp_prev[:, 0],
+        y=kp_prev[:, 1],
+        name='Previous Keypoints',
+        mode='markers',
+        # marker stule here
+        marker=dict(
+            size=3,
+            color='rgba(0, 0, 255, .8)',
+        ),
+    ), row=1, col=1)
+
     fig.append_trace(go.Scatter(
         x=kp[:, 0],
         y=kp[:, 1],
         name='Keypoints',
         mode='markers',
+        # marker stule here
+        marker=dict(
+            size=4,
+            color='rgba(255, 0, 0, .8)',
+        ),
     ), row=1, col=1)
 
     # add image behind the plot
@@ -119,14 +132,6 @@ def update_graph(n, data):
     # set the limits of the plot to the limits of the data
     fig.update_xaxes(range=[0, img_x], row=1, col=1)
     fig.update_yaxes(range=[0, img_y], row=1, col=1)
-
-
-    # fig.append_trace(go.Scatter(
-    #     x=[0, 1],
-    #     y=[0, 1],
-    #     name='Landmarks',
-    #     mode='markers',
-    # ), row=1, col=2)
 
     fig.append_trace(go.Scatter(
         x=landmarks[:, 0],

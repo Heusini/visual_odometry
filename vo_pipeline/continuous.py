@@ -33,6 +33,7 @@ def process_frame(
         'img' : image_curr,
         'iteration' : state_prev['iteration'] + 1,
         'keypoints' : kp_curr,
+        'keypoints_prev' : keypoints_prev,
         'descriptors' : des_curr,
         'landmarks' : P,
         'camera_rotation' : cam_curr.rotation,
