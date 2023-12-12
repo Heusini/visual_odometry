@@ -1,7 +1,7 @@
 import numpy as np
 from typing import NamedTuple, List
 from feature_detection import feature_detection, feature_matching
-from sfm import sfm
+from sfm import sfm, Camera
 
 # equivalent to S^{i} from the project statement
 class FrameState(NamedTuple):
@@ -10,6 +10,7 @@ class FrameState(NamedTuple):
     keypoints : np.ndarray # keypoints positions
     descriptors : np.ndarray # descriptors in the camera frame
     landmarks : np.ndarray # keypoints in the world frame
+    camera : Camera # camera object
     # TODO: extend as described in 4.3
 
 def process_frame(
@@ -34,4 +35,5 @@ def process_frame(
         kp_curr,
         des_curr,
         P,
+        cam_curr,
     )
