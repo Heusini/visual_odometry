@@ -29,7 +29,7 @@ def correspondence(
         Two arrays of shape (K, 2) where K is the number of keypoints.
     """
     kp1, des1 = feature_detection(imgs[0])
-    kp2, des2 = feature_detection(imgs[1])
+    kp2, des2 = feature_detection(imgs[-1])
 
     matches = feature_matching(des1, des2, threshold=feature_matching_threshold)
     x_values1 = [kp1[m.queryIdx].pt[0] for m in matches]

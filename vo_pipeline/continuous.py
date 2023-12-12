@@ -6,7 +6,6 @@ from sfm import sfm, Camera
 # equivalent to S^{i} from the project statement
 class FrameState(NamedTuple):
     iteration : int
-    K : np.ndarray # camera matrix
     keypoints : np.ndarray # keypoints positions
     descriptors : np.ndarray # descriptors in the camera frame
     landmarks : np.ndarray # keypoints in the world frame
@@ -16,6 +15,7 @@ class FrameState(NamedTuple):
 def process_frame(
     state_prev : FrameState,
     image_curr : np.ndarray,
+    K : np.ndarray,
 ) -> FrameState:
    
     kp_curr, des_curr = feature_detection(image_curr)
@@ -27,11 +27,14 @@ def process_frame(
 
     kp_curr = np.stack((np.asarray(xs), np.asarray(ys)), axis=-1)
 
-    P, cam_prev, cam_curr = sfm(kp_curr, state_prev.keypoints, state_prev.K)
+    n_keypoints_prev = state_prev.keypoints.shape[0]
+
+    kp_curr = kp_curr[:n_keypoints_prev]
+
+    P, cam_prev, cam_curr = sfm(kp_curr, state_prev.keypoints, K)
    
     return FrameState(
         state_prev.iteration + 1,
-        state_prev.K,
         kp_curr,
         des_curr,
         P,

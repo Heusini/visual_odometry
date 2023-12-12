@@ -3,7 +3,7 @@ import numpy as np
 import cv2
 
 import plotly.graph_objects as go
-from dash import Dash, dcc, html, Input, Output, callback
+from dash import Dash, dcc, html, Input, Output, callback, State
 import plotly
 
 from continuous import process_frame, FrameState
@@ -12,9 +12,21 @@ from sfm import sfm
 import helpers
 
 # Multiple components can update everytime interval gets fired.
-@callback(Output('live-update-graph', 'figure'),
-              Input('interval-component', 'n_intervals'))
-def update_graph_live(frame_state : FrameState):
+@callback(
+    Output('update_graph', 'figure'),
+    Input('interval-component', 'n_intervals'),
+    [
+        State("badges", "children"), 
+        State("session", "data")
+    ],
+)
+def update_graph(n, state, session_cache):
+
+    print(state)
+
+    if n == 1:
+        init_state = init_state()
+
 
     # Create the graph with subplots
     fig = plotly.tools.make_subplots(rows=2, cols=1, vertical_spacing=0.2)
@@ -42,7 +54,7 @@ def update_graph_live(frame_state : FrameState):
 
     return fig
 
-def pipeline():
+def init_state() -> FrameState:
     DATAPATH = 'data/kitti/05/image_0/'
     I_0 = 1
     I_1 = 4    
@@ -62,8 +74,13 @@ def pipeline():
 
     (kp_a, kp_b), (des_a, des_b) = correspondence(imgs_subarray)
 
+    print(kp_a.shape, kp_b.shape)
+
     landmarks, camera_a, camera_b = sfm(kp_a, kp_b, K)
 
+    return FrameState(I_1, kp_b, des_b, landmarks, camera_b)
+
+def pipeline():
     app = Dash(__name__)
     app.layout = html.Div([
         html.H4('TERRA Satellite Live Feed'),
@@ -73,14 +90,25 @@ def pipeline():
             id='interval-component',
             interval=1*1000, # in milliseconds
             n_intervals=0
-        )
+        ),
+        # The memory store reverts to the default on every page refresh
+        dcc.Store(id="memory"),
+        # The local store will take the initial data
+        # only the first time the page is loaded
+        # and keep it until it is cleared.
+        dcc.Store(id="local", storage_type="local"),
+        # Same as the local store but will lose the data
+        # when the browser/tab closes.
+        dcc.Store(id="session", storage_type="session"),
     ])
 
-    frame_state = FrameState(I_1, K, kp_b, des_b, landmarks, camera_b)
+    app.run(debug=True)
+
 
     # continuous operation
     for i in range(I_1 + 1, imgs.shape[0]):
-        frame_state = process_frame(frame_state, imgs[i])
+        print(f"Processing frame {i}")
+        frame_state = process_frame(frame_state, imgs[i], K)
 
 
 if __name__ == '__main__':
