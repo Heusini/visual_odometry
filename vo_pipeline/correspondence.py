@@ -9,7 +9,7 @@ from helpers import load_images
 def correspondence(
     imgs: np.ndarray,
     feature_matching_threshold : float = 0.99,
-) -> (np.ndarray, np.ndarray):
+) -> ((np.ndarray, np.ndarray), (np.ndarray, np.ndarray)):
     
     """
     Associated task:
@@ -44,13 +44,13 @@ def correspondence(
 
     p1 = np.stack((p1_x, p1_y), axis=-1)
     p2 = np.stack((p2_x, p2_y), axis=-1)
-    return p1, p2
+    return (p1, p2), (des1, des2)
 
 
 def visualize_correspondence():
     imgs = load_images("data/kitti/05/image_0/", start=0, end=2)
 
-    keypoints_a, keypoints_b = correspondence(imgs)
+    (keypoints_a, keypoints_b), (des_a, des_b) = correspondence(imgs)
 
     # plot 8 keypoints with a window size of 5 pixels
     s = 15
