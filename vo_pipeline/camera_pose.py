@@ -35,6 +35,18 @@ def plot_plotly(P, cameras: List[Camera]):
     import plotly.graph_objects as go
 
     plotly_fig = go.Figure()
+    scatter_2D = go.Scatter(
+        x=P[0, :],
+        y=P[2, :],
+        mode="markers",
+        marker=dict(
+            size=1,
+            color="red",  # set color to an array/list of desired values
+            colorscale="Viridis",  # choose a colorscale
+            opacity=0.8,
+        ),
+    )
+    # plotly_fig.add_trace(scatter_2D)
     scatter_3d = go.Scatter3d(
         x=P[0, :],
         y=P[1, :],
@@ -198,6 +210,7 @@ if __name__ == "__main__":
     print(f"Camera matrix 1: {M1}")
     print(f"Camera matrix 2: {M2}")
     P = linearTriangulation(p1, p2, M1, M2)
+    # P = cv.triangulatePoints(M1, M2, p1[:2, :], p2[:2, :])
 
     cameras = []
     print(f"Camera 1: {M1}")
