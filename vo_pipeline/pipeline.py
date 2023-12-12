@@ -93,30 +93,33 @@ def update_graph(n, data):
     camera_translation = np.array(data['camera_translation'])
     camera_rotation = np.array(data['camera_rotation'])
 
+    img_x = img.shape[1]
+    img_y = img.shape[0]
+
     # Create the graph with subplots
     fig = plotly.tools.make_subplots(rows=1, cols=2, vertical_spacing=0.2)
     # plot some random data
+    # invert y axis of kps and image
+    kp[:, 1] = img_y - kp[:, 1]
+    img = np.flip(img, axis=0)
     fig.append_trace(go.Scatter(
         x=kp[:, 0],
         y=kp[:, 1],
         name='Keypoints',
         mode='markers',
     ), row=1, col=1)
-    #plot image behind the scatter plot
-    # fig.add_layout_image(
-    #     dict(
-    #         source=img,
-    #         xref="x",
-    #         yref="y",
-    #         x=0,
-    #         y=0,
-    #         sizex=1,
-    #         sizey=1,
-    #         sizing="contain",
-    #         opacity=0.5,
-    #         layer="below",
-    #     )
-    # )
+
+    # add image behind the plot
+    fig.append_trace(go.Heatmap(
+        z=img,
+        colorscale='gray',
+        showscale=False,
+    ), row=1, col=1)
+
+    # set the limits of the plot to the limits of the data
+    fig.update_xaxes(range=[0, img_x], row=1, col=1)
+    fig.update_yaxes(range=[0, img_y], row=1, col=1)
+
 
     # fig.append_trace(go.Scatter(
     #     x=[0, 1],
