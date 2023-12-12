@@ -1,11 +1,16 @@
 import matplotlib.pyplot as plt
 import numpy as np
+from typing import Optional
 
 from feature_detection import feature_detection, feature_matching
 from helpers import load_images
 
 
-def correspondence(imgs: np.ndarray) -> (np.ndarray, np.ndarray):
+def correspondence(
+    imgs: np.ndarray,
+    feature_matching_threshold : float = 0.99,
+) -> (np.ndarray, np.ndarray):
+    
     """
     Associated task:
 
@@ -26,7 +31,7 @@ def correspondence(imgs: np.ndarray) -> (np.ndarray, np.ndarray):
     kp1, des1 = feature_detection(imgs[0])
     kp2, des2 = feature_detection(imgs[1])
 
-    matches = feature_matching(des1, des2)
+    matches = feature_matching(des1, des2, threshold=feature_matching_threshold)
     x_values1 = [kp1[m.queryIdx].pt[0] for m in matches]
     y_values1 = [kp1[m.queryIdx].pt[1] for m in matches]
     x_values2 = [kp2[m.trainIdx].pt[0] for m in matches]

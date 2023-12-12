@@ -166,7 +166,7 @@ if __name__ == "__main__":
     K_parking = np.array([[331.37, 0, 320], [0, 369.568, 240], [0, 0, 1]])
     K = K_parking
     imgs = np.asarray(imgs)
-    keypoints_a, keypoints_b = correspondence(imgs)
+    keypoints_a, keypoints_b = correspondence(imgs, 0.999)
 
     t1 = time.time()
 
