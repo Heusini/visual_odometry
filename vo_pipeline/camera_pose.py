@@ -1,5 +1,5 @@
-from typing import List
 from enum import Enum
+from typing import List
 
 import cv2 as cv
 import numpy as np
@@ -7,10 +7,13 @@ from exercise_helpers.decompose_essential_matrix import decomposeEssentialMatrix
 from exercise_helpers.disambiguate_relative_pose import disambiguateRelativePose
 from exercise_helpers.normalise_2D_pts import normalise2DPts
 
+
 class DataSetEnum(Enum):
     KITTI = "kitti"
     PARKING = "parking"
     MALAGA = "malaga"
+
+
 class Camera:
     def __init__(self, rotation, translation, K, name):
         self.name = name
@@ -27,7 +30,9 @@ def get_fundamental_matrix(keypoints_a, keypoints_b):
 
 
 def get_essential_matrix(point_a, point_b, K):
-    essential_mat, mask_e = cv.findEssentialMat(point_a, point_b, K, cv.RANSAC, 0.9999, 1)
+    essential_mat, mask_e = cv.findEssentialMat(
+        point_a, point_b, K, cv.RANSAC, 0.9999, 1
+    )
     return essential_mat, mask_e
 
 
@@ -40,11 +45,7 @@ def plot_plotly(P, cameras: List[Camera]):
     from plotly.subplots import make_subplots
 
     plotly_fig = make_subplots(
-        rows=1,
-        cols=2,
-        specs=[
-            [{'type': 'scatter'}, {'type': 'scatter3d'}]
-        ]
+        rows=1, cols=2, specs=[[{"type": "scatter"}, {"type": "scatter3d"}]]
     )
     # draw 2D xz scatter plot plus camera position
     scatter_2D = go.Scatter(
@@ -65,14 +66,10 @@ def plot_plotly(P, cameras: List[Camera]):
     camera_poses = go.Scatter(
         x=[center_point_C1[0], center_point_C2[0]],
         y=[center_point_C1[2], center_point_C2[2]],
-        mode="markers",
-        marker=dict(
-            size=5,
-            color="blue",
-            colorscale="Viridis",
-            opacity=0.8,
-            symbol=4
-        ),
+        mode="markers+text",
+        textposition="bottom center",
+        text=["C1", "C2"],
+        marker=dict(size=5, color="blue", colorscale="Viridis", opacity=0.8, symbol=4),
     )
     plotly_fig.add_trace(camera_poses, 1, 1)
     # draw 3D scatter plot plus camera frames
@@ -108,7 +105,7 @@ def plot_plotly(P, cameras: List[Camera]):
 
 def draw_camera_wireframe(rotation, translation, f, size, cam_name, color="black"):
     import plotly.graph_objects as go
-    
+
     p1_c = np.array([-size / 2, -size / 2, f])
     p2_c = np.array([size / 2, -size / 2, f])
     p3_c = np.array([size / 2, size / 2, f])
@@ -232,8 +229,8 @@ if __name__ == "__main__":
     E = essential_matrix_from_fundamental_matrix(F, K)
 
     # selecting only the inlier points
-    p1 = p1[:, mask_f.ravel()==1]
-    p2 = p2[:, mask_f.ravel()==1]
+    p1 = p1[:, mask_f.ravel() == 1]
+    p2 = p2[:, mask_f.ravel() == 1]
 
     Rots, u3 = decomposeEssentialMatrix(E)
     t2 = time.time()
@@ -260,7 +257,7 @@ if __name__ == "__main__":
     P = P[:, mask]
     mask = P[2, :] < 100
     P = P[:, mask]
-    
+
     cameras = []
     print(f"Camera 1: {M1}")
     print(f"Camera 2: {M2}")
