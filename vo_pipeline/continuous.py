@@ -13,6 +13,10 @@ def process_frame(
     camera_translation_prev = np.array(state_prev['camera_translation'])
     K = np.array(state_prev['K'])
 
+
+    # only dummy code for now !
+    # use smt like here: https://docs.opencv.org/3.4/d2/d1d/samples_2cpp_2lkdemo_8cpp-example.html
+
     kp_curr, des_curr = feature_detection(image_curr)
 
     matches = feature_matching(descriptors_prev, des_curr, threshold=0.99)
