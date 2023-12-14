@@ -1,9 +1,17 @@
 import cv2 as cv
 import numpy as np
+from typing import NamedTuple, List
 
+class Keypoints(NamedTuple):
+    pt : np.ndarray # 2D location of the keypoint
+    size : float # size of the keypoint
+    angle : float # orientation of the keypoint
+    response : float # strength of the keypoint
+    octave : int # octave of the keypoint
+    class_id : int # id of the keypoint
 
-def feature_detection(img):
-    # gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+def feature_detection(img) -> (List[Keypoints], np.ndarray):
+    # gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY
     sift = cv.SIFT_create()
     kp, des = sift.detectAndCompute(img, None)
 
