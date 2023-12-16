@@ -1,14 +1,7 @@
-from enum import Enum
 from typing import List
 
 import cv2 as cv
 import numpy as np
-
-
-class DataSetEnum(Enum):
-    KITTI = "kitti"
-    PARKING = "parking"
-    MALAGA = "malaga"
 
 
 class Camera:
@@ -40,12 +33,18 @@ def essential_matrix_from_fundamental_matrix(fundamental_mat, K):
 # test stuff
 if __name__ == "__main__":
     import time
+    from enum import Enum
 
     from correspondence import correspondence
     from exercise_helpers.decompose_essential_matrix import decomposeEssentialMatrix
     from exercise_helpers.disambiguate_relative_pose import disambiguateRelativePose
     from exercise_helpers.linear_triangulation import linearTriangulation
     from helpers import draw_camera_wireframe
+
+    class DataSetEnum(Enum):
+        KITTI = "kitti"
+        PARKING = "parking"
+        MALAGA = "malaga"
 
     def plot_plotly(P, cameras: List[Camera]):
         import plotly.graph_objects as go
