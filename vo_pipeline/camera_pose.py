@@ -2,33 +2,12 @@ from typing import List
 
 import cv2 as cv
 import numpy as np
-
-
-class Camera:
-    def __init__(self, rotation, translation, K, name):
-        self.name = name
-        self.rotation = rotation
-        self.translation = translation
-        self.K = K
-
-
-def get_fundamental_matrix(keypoints_a, keypoints_b):
-    fundamental_mat, mask = cv.findFundamentalMat(
-        keypoints_a, keypoints_b, cv.RANSAC, 1, 0.9999, 50000
-    )
-    return fundamental_mat, mask
-
-
-def get_essential_matrix(point_a, point_b, K):
-    essential_mat, mask_e = cv.findEssentialMat(
-        point_a, point_b, K, cv.RANSAC, 0.9999, 1
-    )
-    return essential_mat, mask_e
-
-
-def essential_matrix_from_fundamental_matrix(fundamental_mat, K):
-    return K.T @ fundamental_mat @ K
-
+from camera import (
+    Camera,
+    essential_matrix_from_fundamental_matrix,
+    get_fundamental_matrix,
+)
+from correspondence import correspondence
 
 # test stuff
 if __name__ == "__main__":
@@ -111,7 +90,7 @@ if __name__ == "__main__":
                 camera.translation,
                 0.5,
                 0.5,
-                camera.name,
+                f"Cam: {camera.id}",
                 colors[count],
             )
             count = (count + 1) % len(colors)
@@ -145,10 +124,14 @@ if __name__ == "__main__":
 
     img1 = cv.cvtColor(img1, cv.COLOR_BGR2GRAY)
     img2 = cv.cvtColor(img2, cv.COLOR_BGR2GRAY)
-    imgs.append(img1)
-    imgs.append(img2)
     imgs = np.asarray(imgs)
-    (keypoints_a, keypoints_b), (_, _) = correspondence(imgs, 0.99)
+    cam1 = Camera(0, K, img1)
+    cam2 = Camera(0, K, img2)
+    cam1.calculate_features()
+    cam2.calculate_features()
+    (keypoints_a, keypoints_b), (_, _) = correspondence(
+        cam1.features, cam2.features, 0.99
+    )
 
     t1 = time.time()
 
@@ -166,16 +149,16 @@ if __name__ == "__main__":
 
     Rots, u3 = decomposeEssentialMatrix(E)
     t2 = time.time()
-    R_C2_W, T_C2_W = disambiguateRelativePose(Rots, u3, p1, p2, K, K)
+    R_C2_C1, T_C2_C1 = disambiguateRelativePose(Rots, u3, p1, p2, K, K)
     t3 = time.time()
 
     print(f"Time to calculate without disambiguateRelativePose: {t2-t1}")
     print(f"Time to calculate disambiguateRelativePose: {t3-t2}")
-    print(f"Roataion: {R_C2_W}")
-    print(f"Translation: {T_C2_W}")
+    print(f"Roataion: {R_C2_C1}")
+    print(f"Translation: {T_C2_C1}")
 
     M1 = K @ np.eye(3, 4)
-    M2 = K @ np.c_[R_C2_W, T_C2_W]
+    M2 = K @ np.c_[R_C2_C1, T_C2_C1]
     print(f"Camera matrix 1: {M1}")
     print(f"Camera matrix 2: {M2}")
     P = linearTriangulation(p1, p2, M1, M2)
@@ -195,10 +178,15 @@ if __name__ == "__main__":
     print(f"Camera 2: {M2}")
 
     # this is R @ -T = C2_W_Center
-    T_W_C2 = -R_C2_W.T @ T_C2_W
-    T_C2_W = T_C2_W.reshape((3, 1))
+    T_W_C2 = -R_C2_C1.T @ T_C2_C1
+    T_C2_C1 = T_C2_C1.reshape((3, 1))
+
+    R_W_C1 = np.array([[1, 0, 0], [0, 0, 1], [0, -1, 0]])
+
     print(f"Center of camera 2 in world coordinates: {T_W_C2}")
-    cameras.append(Camera(np.eye(3, 3), np.zeros((3, 1)), K, "Cam 1"))
-    cameras.append(Camera(R_C2_W, T_C2_W, K, "Cam 2"))
+    cameras.append(cam1)
+    cam2.rotation = R_C2_C1
+    cam2.translation = T_C2_C1
+    cameras.append(cam2)
 
     plot_plotly(P, cameras)

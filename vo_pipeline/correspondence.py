@@ -1,16 +1,16 @@
-import matplotlib.pyplot as plt
-import numpy as np
 from typing import Optional
 
+import matplotlib.pyplot as plt
+import numpy as np
 from feature_detection import feature_detection, feature_matching
 from helpers import load_images
 
 
 def correspondence(
-    imgs: np.ndarray,
-    feature_matching_threshold : float = 0.99,
+    features_cam1,
+    features_cam2,
+    feature_matching_threshold: float = 0.99,
 ) -> ((np.ndarray, np.ndarray), (np.ndarray, np.ndarray)):
-    
     """
     Associated task:
 
@@ -19,18 +19,16 @@ def correspondence(
 
     Parameters
     ----------
-    imgs : np.ndarray
-        Shape is (N, H, W) where N is the number of images and
-        H and W are the height and width of the images.
+    features_cam1 : Tuple of keypoints and descriptors of camera1
+    features_cam2 : Tuple of keypoints and descriptors of camera2
 
     Returns
     -------
     (np.ndarray, np.ndarray)
         Two arrays of shape (K, 2) where K is the number of keypoints.
     """
-    kp1, des1 = feature_detection(imgs[0])
-    kp2, des2 = feature_detection(imgs[-1])
-
+    kp1, des1 = features_cam1
+    kp2, des2 = features_cam2
     matches = feature_matching(des1, des2, threshold=feature_matching_threshold)
     x_values1 = [kp1[m.queryIdx].pt[0] for m in matches]
     y_values1 = [kp1[m.queryIdx].pt[1] for m in matches]
