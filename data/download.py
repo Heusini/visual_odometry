@@ -12,6 +12,10 @@ targets = [
         "malaga-urban-dataset-extract-07.zip",
         "https://rpg.ifi.uzh.ch/docs/teaching/2023/malaga-urban-dataset-extract-07.zip",
     ),
+    (
+        "woko.zip",
+        "https://nextcloud.heusinger.art/s/sTAfyTdH3GbxQ2P/download/woko_dataset.zip",
+    ),
 ]
 
 
