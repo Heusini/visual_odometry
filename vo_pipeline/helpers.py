@@ -45,12 +45,12 @@ def draw_camera_wireframe(rotation, translation, f, size, cam_name, color="black
     p3_c = np.array([size / 2, size / 2, f])
     p4_c = np.array([-size / 2, size / 2, f])
 
-    p1_w = rotation.T @ (p1_c - translation[:, 0])
-    p2_w = rotation.T @ (p2_c - translation[:, 0])
-    p3_w = rotation.T @ (p3_c - translation[:, 0])
-    p4_w = rotation.T @ (p4_c - translation[:, 0])
+    p1_w = rotation @ (p1_c - translation[:, 0])
+    p2_w = rotation @ (p2_c - translation[:, 0])
+    p3_w = rotation @ (p3_c - translation[:, 0])
+    p4_w = rotation @ (p4_c - translation[:, 0])
 
-    center_point = rotation.T @ (-translation[:, 0])
+    center_point = rotation @ (-translation[:, 0])
     print(center_point.shape)
 
     # draw camera wireframe

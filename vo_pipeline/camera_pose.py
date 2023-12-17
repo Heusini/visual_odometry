@@ -1,3 +1,5 @@
+import time
+from enum import Enum
 from typing import List
 
 import cv2 as cv
@@ -8,96 +10,92 @@ from camera import (
     get_fundamental_matrix,
 )
 from correspondence import correspondence
+from exercise_helpers.decompose_essential_matrix import decomposeEssentialMatrix
+from exercise_helpers.disambiguate_relative_pose import disambiguateRelativePose
+from exercise_helpers.linear_triangulation import linearTriangulation
+from helpers import draw_camera_wireframe
+
+
+class DataSetEnum(Enum):
+    KITTI = "kitti"
+    PARKING = "parking"
+    MALAGA = "malaga"
+
+
+def plot_plotly(P, cameras: List[Camera]):
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
+
+    plotly_fig = make_subplots(
+        rows=1, cols=2, specs=[[{"type": "scatter"}, {"type": "scatter3d"}]]
+    )
+    # draw 2D xz scatter plot plus camera position
+    scatter_2D = go.Scatter(
+        x=P[0, :],
+        y=P[1, :],
+        mode="markers",
+        marker=dict(
+            size=3,
+            color="red",  # set color to an array/list of desired values
+            colorscale="Viridis",  # choose a colorscale
+            opacity=0.8,
+        ),
+    )
+    plotly_fig.add_trace(scatter_2D, 1, 1)
+
+    center_point_C1 = cameras[0].rotation.T @ (-cameras[0].translation[:, 0])
+    center_point_C2 = cameras[1].rotation.T @ (-cameras[1].translation[:, 0])
+    camera_poses = go.Scatter(
+        x=[center_point_C1[0], center_point_C2[0]],
+        y=[center_point_C1[2], center_point_C2[2]],
+        mode="markers+text",
+        textposition="bottom center",
+        text=["C1", "C2"],
+        marker=dict(size=5, color="blue", colorscale="Viridis", opacity=0.8, symbol=4),
+    )
+    plotly_fig.add_trace(camera_poses, 1, 1)
+    # draw 3D scatter plot plus camera frames
+    scatter_3d = go.Scatter3d(
+        x=P[0, :],
+        y=P[1, :],
+        z=P[2, :],
+        mode="markers",
+        marker=dict(
+            size=3,
+            color="red",  # set color to an array/list of desired values
+            colorscale="Viridis",  # choose a colorscale
+            opacity=0.8,
+        ),
+    )
+    plotly_fig.add_trace(scatter_3d, 1, 2)
+    colors = [
+        "black",
+        "green",
+        "blue",
+        "yellow",
+        "orange",
+        "purple",
+        "pink",
+        "brown",
+    ]
+    count = 0
+    for camera in cameras:
+        camera_wireframe = draw_camera_wireframe(
+            camera.rotation,
+            camera.translation,
+            0.5,
+            0.5,
+            f"Cam: {camera.id}",
+            colors[count],
+        )
+        count = (count + 1) % len(colors)
+        for line in camera_wireframe:
+            plotly_fig.add_trace(line, 1, 2)
+    plotly_fig.show()
+
 
 # test stuff
 if __name__ == "__main__":
-    import time
-    from enum import Enum
-
-    from correspondence import correspondence
-    from exercise_helpers.decompose_essential_matrix import decomposeEssentialMatrix
-    from exercise_helpers.disambiguate_relative_pose import disambiguateRelativePose
-    from exercise_helpers.linear_triangulation import linearTriangulation
-    from helpers import draw_camera_wireframe
-
-    class DataSetEnum(Enum):
-        KITTI = "kitti"
-        PARKING = "parking"
-        MALAGA = "malaga"
-
-    def plot_plotly(P, cameras: List[Camera]):
-        import plotly.graph_objects as go
-        from plotly.subplots import make_subplots
-
-        plotly_fig = make_subplots(
-            rows=1, cols=2, specs=[[{"type": "scatter"}, {"type": "scatter3d"}]]
-        )
-        # draw 2D xz scatter plot plus camera position
-        scatter_2D = go.Scatter(
-            x=P[0, :],
-            y=P[2, :],
-            mode="markers",
-            marker=dict(
-                size=3,
-                color="red",  # set color to an array/list of desired values
-                colorscale="Viridis",  # choose a colorscale
-                opacity=0.8,
-            ),
-        )
-        plotly_fig.add_trace(scatter_2D, 1, 1)
-
-        center_point_C1 = cameras[0].rotation.T @ (-cameras[0].translation[:, 0])
-        center_point_C2 = cameras[1].rotation.T @ (-cameras[1].translation[:, 0])
-        camera_poses = go.Scatter(
-            x=[center_point_C1[0], center_point_C2[0]],
-            y=[center_point_C1[2], center_point_C2[2]],
-            mode="markers+text",
-            textposition="bottom center",
-            text=["C1", "C2"],
-            marker=dict(
-                size=5, color="blue", colorscale="Viridis", opacity=0.8, symbol=4
-            ),
-        )
-        plotly_fig.add_trace(camera_poses, 1, 1)
-        # draw 3D scatter plot plus camera frames
-        scatter_3d = go.Scatter3d(
-            x=P[0, :],
-            y=P[1, :],
-            z=P[2, :],
-            mode="markers",
-            marker=dict(
-                size=3,
-                color="red",  # set color to an array/list of desired values
-                colorscale="Viridis",  # choose a colorscale
-                opacity=0.8,
-            ),
-        )
-        plotly_fig.add_trace(scatter_3d, 1, 2)
-        colors = [
-            "black",
-            "green",
-            "blue",
-            "yellow",
-            "orange",
-            "purple",
-            "pink",
-            "brown",
-        ]
-        count = 0
-        for camera in cameras:
-            camera_wireframe = draw_camera_wireframe(
-                camera.rotation,
-                camera.translation,
-                0.5,
-                0.5,
-                f"Cam: {camera.id}",
-                colors[count],
-            )
-            count = (count + 1) % len(colors)
-            for line in camera_wireframe:
-                plotly_fig.add_trace(line, 1, 2)
-        plotly_fig.show()
-
     imgs = []
     # imgs = load_images("data/kitti/05/image_0/", start=0, end=2)
     dataset = DataSetEnum.PARKING
@@ -125,8 +123,8 @@ if __name__ == "__main__":
     img1 = cv.cvtColor(img1, cv.COLOR_BGR2GRAY)
     img2 = cv.cvtColor(img2, cv.COLOR_BGR2GRAY)
     imgs = np.asarray(imgs)
-    cam1 = Camera(0, K, img1)
-    cam2 = Camera(0, K, img2)
+    cam1 = Camera(1, K, img1)
+    cam2 = Camera(2, K, img2)
     cam1.calculate_features()
     cam2.calculate_features()
     (keypoints_a, keypoints_b), (_, _) = correspondence(
@@ -181,12 +179,19 @@ if __name__ == "__main__":
     T_W_C2 = -R_C2_C1.T @ T_C2_C1
     T_C2_C1 = T_C2_C1.reshape((3, 1))
 
-    R_W_C1 = np.array([[1, 0, 0], [0, 0, 1], [0, -1, 0]])
+    R_W_C1 = np.array([[-1, 0, 0], [0, 0, -1], [0, -1, 0]])
+
+    cam1.rotation = R_W_C1 @ cam1.rotation
+    cam2.rotation = R_W_C1 @ R_C2_C1.T
+    cam2.translation = T_C2_C1
 
     print(f"Center of camera 2 in world coordinates: {T_W_C2}")
     cameras.append(cam1)
-    cam2.rotation = R_C2_C1
-    cam2.translation = T_C2_C1
+
     cameras.append(cam2)
+    print(P.shape)
+    R = np.eye(4)
+    R[:3, :3] = cam1.rotation
+    P = R @ P
 
     plot_plotly(P, cameras)
