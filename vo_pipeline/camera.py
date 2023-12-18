@@ -61,7 +61,7 @@ class Camera:
     def calculate_matches(self, other: "Camera", threshold=0.7):
         return correspondence(self.features, other.features, threshold)
 
-    def calculate_cam2_pose(
+    def calculate_points_in_world(
         self, cam2: "Camera", matched_points_cam1, matched_points_cam2
     ):
         """
@@ -90,11 +90,9 @@ class Camera:
             Rots, u3, p1, p2, self.K, self.K
         )
 
-        M1 = self.K @ np.hstack([self.rotation, self.translation])
-        M2 = cam2.K @ np.hstack([cam2.rotation, cam2.translation])
-        points_3d = cv.triangulatePoints(
-            M1, M2, matched_points_cam1.T, matched_points_cam2.T
-        )
+        M1 = self.K @ np.eye(3, 4)
+        M2 = cam2.K @ np.c_[R_CAM2_CAM1, T_CAM2_CAM1]
+        P = linearTriangulation(p1, p2, M1, M2)
 
         # TODO: check if this is correct
         # self.rotation is of R_W_C
@@ -103,9 +101,12 @@ class Camera:
         cam2.translation = (
             -cam2.rotation @ T_CAM2_CAM1 - self.rotation @ self.translation
         )
-        return mask_f
 
-    def create_point_cloud(
-        self, cam2: "Camera", matched_points_cam1, matched_points_cam2, mask_f
-    ):
-        pass
+        M = np.eye(4)
+        M[:3, :3] = self.rotation
+        M[:3, 3] = -self.translation[:, 0]
+        print(M)
+
+        P = M @ P
+
+        return P
