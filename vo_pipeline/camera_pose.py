@@ -29,6 +29,7 @@ def plot_plotly(P, cameras: List[Camera]):
     plotly_fig = make_subplots(
         rows=1, cols=2, specs=[[{"type": "scatter"}, {"type": "scatter3d"}]]
     )
+    plotly_fig.update_scenes(aspectmode="data")
     # draw 2D xz scatter plot plus camera position
     scatter_2D = go.Scatter(
         x=P[0, :],
@@ -179,7 +180,7 @@ if __name__ == "__main__":
     T_W_C2 = -R_C2_C1.T @ T_C2_C1
     T_C2_C1 = T_C2_C1.reshape((3, 1))
 
-    R_W_C1 = np.array([[-1, 0, 0], [0, 0, -1], [0, -1, 0]])
+    R_W_C1 = np.array([[1, 0, 0], [0, 0, 1], [0, -1, 0]])
 
     cam1.rotation = R_W_C1 @ cam1.rotation
     cam2.rotation = R_W_C1 @ R_C2_C1.T
