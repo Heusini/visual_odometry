@@ -25,6 +25,12 @@ class DataLoader:
         self.poses = None
         self.images = None
 
+    def __len__(self):
+        if self.images is not None:
+            return len(self.images)
+        return 0
+
+
     def load_data(self):
         self._load_k()
         self._load_frames()
@@ -64,7 +70,7 @@ class DataLoader:
         # Load KITTI specific frames
         frames_path = path.joinpath("05/image_0")
         frames = []
-        for filename in os.listdir(frames_path):
+        for filename in sorted(os.listdir(frames_path)):
             if filename.endswith('.png'):
                 img = cv2.imread(str(frames_path.joinpath(filename)))
                 img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -75,7 +81,7 @@ class DataLoader:
         # Load MALAGA specific frames
         frames_path = path.joinpath("images")
         frames = []
-        for filename in os.listdir(frames_path):
+        for filename in sorted(os.listdir(frames_path)):
             if filename.endswith('left.jpg'):
                 img = cv2.imread(str(frames_path.joinpath(filename)))
                 img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -86,7 +92,7 @@ class DataLoader:
         # Load PARKING specific frames
         frames_path = path.joinpath("images")
         frames = []
-        for filename in os.listdir(frames_path):
+        for filename in sorted(os.listdir(frames_path)):
             if filename.endswith('.png'):
                 img = cv2.imread(str(frames_path.joinpath(filename)))
                 img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -117,7 +123,7 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
 
     # Initialize DataLoader with a dataset
-    loader = DataLoader(Dataset.MALAGA)
+    loader = DataLoader(Dataset.KITTI)
 
     # Load the data
     loader.load_data()
@@ -132,6 +138,9 @@ if __name__ == '__main__':
     # Print the poses
     print("Poses:")
     print(poses)
+
+    num_frames = len(loader)
+    print(f"Number of frames: {num_frames}")
 
     # Display the first image
     plt.imshow(images[0], cmap='gray')
