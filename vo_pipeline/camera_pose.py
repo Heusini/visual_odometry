@@ -142,25 +142,31 @@ if __name__ == "__main__":
     F, mask_f = get_fundamental_matrix(p1[:2, :].T, p2[:2, :].T)
     E = essential_matrix_from_fundamental_matrix(F, K)
 
-    # selecting only the inlier points
+    # selecting only the inlier points (from RAMSAC mask)
     p1 = p1[:, mask_f.ravel() == 1]
     p2 = p2[:, mask_f.ravel() == 1]
-
-    Rots, u3 = decomposeEssentialMatrix(E)
+    
+    # find rotation and translation from camera 2 to camera 1
+    R_C2_C1, T_C2_C1 = decomposeEssentialMatrix(E)
     t2 = time.time()
-    R_C2_C1, T_C2_C1 = disambiguateRelativePose(Rots, u3, p1, p2, K, K)
+    # Make sure that the points are in front of the camera
+    R_C2_C1, T_C2_C1 = disambiguateRelativePose(R_C2_C1, T_C2_C1 , p1, p2, K, K)
     t3 = time.time()
 
     print(f"Time to calculate without disambiguateRelativePose: {t2-t1}")
     print(f"Time to calculate disambiguateRelativePose: {t3-t2}")
     print(f"Roataion: {R_C2_C1}")
-    print(f"Translation: {T_C2_C1}")
+    print(f"Translation: {T_C2_C1 }")
 
+    # compute the camera projection matrices
     M1 = K @ np.eye(3, 4)
-    M2 = K @ np.c_[R_C2_C1, T_C2_C1]
+    # we can do this as camera 1 is at the origin and orientation of world frame
+    M2 = K @ np.c_[R_C2_C1, T_C2_C1 ]
     print(f"Camera matrix 1: {M1}")
     print(f"Camera matrix 2: {M2}")
     P = linearTriangulation(p1, p2, M1, M2)
+
+    print(f"Shape of P: {P}")
     # btw if you want to use opencv you have to dehomogenize the points
     # P = cv.triangulatePoints(M1, M2, p1[:2, :], p2[:2, :])
     # P[:3, :] /= P[3, :]
@@ -177,14 +183,14 @@ if __name__ == "__main__":
     print(f"Camera 2: {M2}")
 
     # this is R @ -T = C2_W_Center
-    T_W_C2 = -R_C2_C1.T @ T_C2_C1
-    T_C2_C1 = T_C2_C1.reshape((3, 1))
+    T_W_C2 = -R_C2_C1.T @ T_C2_C1 
+    T_C2_C1  = T_C2_C1 .reshape((3, 1))
 
     R_W_C1 = np.array([[1, 0, 0], [0, 0, 1], [0, -1, 0]])
 
     cam1.rotation = R_W_C1 @ cam1.rotation
     cam2.rotation = R_W_C1 @ R_C2_C1.T
-    cam2.translation = T_C2_C1
+    cam2.translation = T_C2_C1 
 
     print(f"Center of camera 2 in world coordinates: {T_W_C2}")
     cameras.append(cam1)

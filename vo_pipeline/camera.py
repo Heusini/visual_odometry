@@ -7,6 +7,7 @@ from exercise_helpers.linear_triangulation import linearTriangulation
 from feature_detection import feature_detection, feature_matching
 
 def get_fundamental_matrix(keypoints_a, keypoints_b):
+    # CV2 uses the 8-point algorithm when n > 8
     fundamental_mat, mask = cv.findFundamentalMat(
         keypoints_a, keypoints_b, cv.RANSAC, 1, 0.9999, 50000
     )
@@ -21,6 +22,7 @@ def get_essential_matrix(point_a, point_b, K):
 
 
 def essential_matrix_from_fundamental_matrix(fundamental_mat, K):
+    # by definition of the fundamental matrix
     return K.T @ fundamental_mat @ K
 
 
