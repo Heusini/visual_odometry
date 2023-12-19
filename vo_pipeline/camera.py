@@ -6,7 +6,6 @@ from exercise_helpers.disambiguate_relative_pose import disambiguateRelativePose
 from exercise_helpers.linear_triangulation import linearTriangulation
 from feature_detection import feature_detection, feature_matching
 
-
 def get_fundamental_matrix(keypoints_a, keypoints_b):
     fundamental_mat, mask = cv.findFundamentalMat(
         keypoints_a, keypoints_b, cv.RANSAC, 1, 0.9999, 50000

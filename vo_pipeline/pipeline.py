@@ -54,12 +54,12 @@ def pipeline():
         dcc.Graph(id='update_graph'),
         dcc.Store(
             id="frame_state", 
-            storage_type='local', 
+            storage_type='memory', 
             data=state),
         dcc.Interval(
             id='interval-component',
-            interval=200, # in milliseconds
-            n_intervals=0
+            interval=600, # in milliseconds
+            n_intervals=1
         ),
     ])
 
@@ -73,7 +73,6 @@ def pipeline():
     ],
     [ # input
         Input('interval-component', 'n_intervals'),
-        # Input('frame_state', 'data'),
     ],
     [
         State("frame_state", "data")
@@ -85,13 +84,15 @@ def update_graph(n, data):
     kp_prev = np.array(data['keypoints_prev'])
     landmarks = np.array(data['landmarks'])
     img = np.array(data['img'])
-    camera_translation = np.array(data['camera_translation'])
-    camera_rotation = np.array(data['camera_rotation'])
+    # camera_translation = np.array(data['camera_translation'])
+    # camera_rotation = np.array(data['camera_rotation'])
+
+    print(n)
 
     img_x = img.shape[1]
     img_y = img.shape[0]
 
-    # Create the graph with subplots
+    # # Create the graph with subplots
     fig = plotly.tools.make_subplots(rows=1, cols=2, vertical_spacing=0.2)
     # plot some random data
     # invert y axis of kps and image
@@ -110,26 +111,26 @@ def update_graph(n, data):
         ),
     ), row=1, col=1)
 
-    fig.append_trace(go.Scatter(
-        x=kp[:, 0],
-        y=kp[:, 1],
-        name='Keypoints',
-        mode='markers',
-        # marker stule here
-        marker=dict(
-            size=4,
-            color='rgba(255, 0, 0, .8)',
-        ),
-    ), row=1, col=1)
+    # fig.append_trace(go.Scatter(
+    #     x=kp[:, 0],
+    #     y=kp[:, 1],
+    #     name='Keypoints',
+    #     mode='markers',
+    #     # marker stule here
+    #     marker=dict(
+    #         size=4,
+    #         color='rgba(255, 0, 0, .8)',
+    #     ),
+    # ), row=1, col=1)
 
-    # add image behind the plot
-    fig.append_trace(go.Heatmap(
-        z=img,
-        colorscale='gray',
-        showscale=False,
-    ), row=1, col=1)
+    # # add image behind the plot
+    # fig.append_trace(go.Heatmap(
+    #     z=img,
+    #     colorscale='gray',
+    #     showscale=False,
+    # ), row=1, col=1)
 
-    # set the limits of the plot to the limits of the data
+    # # set the limits of the plot to the limits of the data
     fig.update_xaxes(range=[0, img_x], row=1, col=1)
     fig.update_yaxes(range=[0, img_y], row=1, col=1)
 
@@ -140,13 +141,13 @@ def update_graph(n, data):
         mode='markers',
     ), row=1, col=2)
 
-    # # add camera position
-    # fig.append_trace(go.Scatter(
-    #     x=[camera_translation[0]],
-    #     y=[camera_translation[1]],
-    #     name='Camera',
-    #     mode='markers',
-    # ), row=1, col=2)
+    # # # add camera position
+    # # fig.append_trace(go.Scatter(
+    # #     x=[camera_translation[0]],
+    # #     y=[camera_translation[1]],
+    # #     name='Camera',
+    # #     mode='markers',
+    # # ), row=1, col=2)
 
     img_id = data['iteration']
 
