@@ -13,7 +13,7 @@ if __name__ == "__main__":
     img1 = cv.imread("data/parking/images/img_00000.png")
     img2 = cv.imread("data/parking/images/img_00003.png")
     K = K_parking
-    cam1 = Camera(1, K, img1, np.array([[1, 0, 0], [0, 0, 1], [0, -1, 0]]))
+    cam1 = Camera(1, K, img1, np.array([[1, 0, 0], [0, 0, -1], [0, 1, 0]]))
     cam2 = Camera(2, K, img2)
 
     matches = {}

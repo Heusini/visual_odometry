@@ -81,24 +81,18 @@ def plot_plotly(P, cameras: List[Camera]):
     ]
     count = 0
     for camera in cameras:
-        camera_wireframe = draw_camera_wireframe(
-            camera.rotation,
-            camera.translation,
-            0.5,
-            0.5,
-            f"Cam: {camera.id}",
-            colors[count],
+        camera_wireframe = camera.draw_camera_wireframe(
+            0.5, 0.5, f"Cam: {camera.id}", colors[count]
         )
         count = (count + 1) % len(colors)
         for line in camera_wireframe:
             plotly_fig.add_trace(line, 1, 2)
     plotly_fig.show()
 
-def estimate_next_camera_pose(
-    cam1 : Camera,
-    kp_1 : np.ndarray,
-    kp_2 : np.ndarray) -> ((np.ndarray, np.ndarray), np.ndarray):
 
+def estimate_next_camera_pose(
+    cam1: Camera, kp_1: np.ndarray, kp_2: np.ndarray
+) -> ((np.ndarray, np.ndarray), np.ndarray):
     p1 = np.hstack([kp_1, np.ones((kp_1.shape[0], 1))]).T
     p2 = np.hstack([kp_2, np.ones((kp_2.shape[0], 1))]).T
 
@@ -113,12 +107,12 @@ def estimate_next_camera_pose(
     # camera1 in world coordinates
     T_W_C1 = np.reshape(cam1.translation, (3, 1))
     R_W_C1 = cam1.rotation
-    
+
     # find rotation and translation from camera 2 to camera 1
     R_C2_C1, T_C2_C1 = decomposeEssentialMatrix(E)
 
     # make sure that the points are in front of the camera
-    R_C2_C1, T_C2_C1 = disambiguateRelativePose(R_C2_C1, T_C2_C1 , p1, p2, K, K)
+    R_C2_C1, T_C2_C1 = disambiguateRelativePose(R_C2_C1, T_C2_C1, p1, p2, K, K)
     T_C2_C1 = T_C2_C1.reshape((3, 1))
 
     # compute the camera projection matrices
@@ -137,6 +131,7 @@ def estimate_next_camera_pose(
     P_W = P_W[:, mask]
 
     return (R_W_C2, T_W_C2), P_W
+
 
 # test stuff
 if __name__ == "__main__":
@@ -176,9 +171,7 @@ if __name__ == "__main__":
     cam1.calculate_features()
     cam2.calculate_features()
     cam3.calculate_features()
-    (kp_1, kp_2), (_, _) = correspondence(
-        cam1.features, cam2.features, 0.99
-    )
+    (kp_1, kp_2), (_, _) = correspondence(cam1.features, cam2.features, 0.99)
 
     # (R_W_C2, T_W_C2), P = estimate_next_camera_pose(cam1, kp_1, kp_2)
     # cam2.rotation = R_W_C2
@@ -211,12 +204,12 @@ if __name__ == "__main__":
     # selecting only the inlier points (from RAMSAC mask)
     p1 = p1[:, mask_f.ravel() == 1]
     p2 = p2[:, mask_f.ravel() == 1]
-    
+
     # find rotation and translation from camera 2 to camera 1
     R_C2_C1, T_C2_C1 = decomposeEssentialMatrix(E)
     t2 = time.time()
     # Make sure that the points are in front of the camera
-    R_C2_C1, T_C2_C1 = disambiguateRelativePose(R_C2_C1, T_C2_C1 , p1, p2, K, K)
+    R_C2_C1, T_C2_C1 = disambiguateRelativePose(R_C2_C1, T_C2_C1, p1, p2, K, K)
     t3 = time.time()
 
     print(f"Time to calculate without disambiguateRelativePose: {t2-t1}")
@@ -227,7 +220,7 @@ if __name__ == "__main__":
     # compute the camera projection matrices
     M1 = K @ np.eye(3, 4)
     # we can do this as camera 1 is at the origin and orientation of world frame
-    M2 = K @ np.c_[R_C2_C1, T_C2_C1 ]
+    M2 = K @ np.c_[R_C2_C1, T_C2_C1]
     print(f"Camera matrix 1: {M1}")
     print(f"Camera matrix 2: {M2}")
     P = linearTriangulation(p1, p2, M1, M2)
@@ -250,15 +243,15 @@ if __name__ == "__main__":
 
     # this is R @ -T = C2_W_Center
     # get the center of camera 2 in world coordinates, again world coordinates are the same as camera 1
-    T_W_C2 = -R_C2_C1.T @ T_C2_C1 
-    T_C2_C1  = T_C2_C1.reshape((3, 1))
+    T_W_C2 = -R_C2_C1.T @ T_C2_C1
+    T_C2_C1 = T_C2_C1.reshape((3, 1))
 
-    # rotate camera 1 
+    # rotate camera 1
     R_W_C1 = np.array([[1, 0, 0], [0, 0, 1], [0, -1, 0]])
 
-    cam1.rotation = R_W_C1
-    cam2.rotation = R_W_C1 @ R_C2_C1.T
-    cam2.translation = T_C2_C1 
+    cam1.rotation = R_W_C1.T
+    cam2.rotation = (R_W_C1 @ R_C2_C1.T).T
+    cam2.translation = T_C2_C1
 
     print(f"Center of camera 2 in world coordinates: {T_W_C2}")
     cameras.append(cam1)
