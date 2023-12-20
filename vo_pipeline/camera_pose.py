@@ -200,8 +200,8 @@ if __name__ == "__main__":
 
     t1 = time.time()
 
-    p1 = np.hstack([keypoints_a, np.ones((keypoints_a.shape[0], 1))]).T
-    p2 = np.hstack([keypoints_b, np.ones((keypoints_b.shape[0], 1))]).T
+    p1 = np.hstack([kp_1, np.ones((kp_1.shape[0], 1))]).T
+    p2 = np.hstack([kp_2, np.ones((kp_2.shape[0], 1))]).T
 
     print(f"p1: {p1.shape}")
     # mask_f contains the indices of all inlier points obtained from RANSAC
