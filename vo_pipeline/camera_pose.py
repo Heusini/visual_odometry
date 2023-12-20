@@ -96,11 +96,11 @@ def plot_plotly(P, cameras: List[Camera]):
 
 def estimate_next_camera_pose(
     cam1 : Camera,
-    keypoints_1 : np.ndarray,
-    keypoints_2 : np.ndarray) -> ((np.ndarray, np.ndarray), np.ndarray):
+    kp_1 : np.ndarray,
+    kp_2 : np.ndarray) -> ((np.ndarray, np.ndarray), np.ndarray):
 
-    p1 = np.hstack([keypoints_a, np.ones((keypoints_a.shape[0], 1))]).T
-    p2 = np.hstack([keypoints_b, np.ones((keypoints_b.shape[0], 1))]).T
+    p1 = np.hstack([kp_1, np.ones((kp_1.shape[0], 1))]).T
+    p2 = np.hstack([kp_2, np.ones((kp_2.shape[0], 1))]).T
 
     # mask_f contains the indices of all inlier points obtained from RANSAC
     F, mask_f = get_fundamental_matrix(p1[:2, :].T, p2[:2, :].T)
@@ -124,18 +124,16 @@ def estimate_next_camera_pose(
     # compute the camera projection matrices
     M1 = K @ np.c_[cam1.rotation, cam1.translation]
     # position of camera2 in world coordinates
-    T_W_C2 = T_C2_C1 + R_C2_C1 @ T_W_C1
-    print(T_W_C2)
-    print(T_C2_C1)
+    T_W_C2 = T_W_C1 - R_C2_C1 @ T_C2_C1
     R_W_C2 = R_W_C1 @ R_C2_C1.T
     M2 = K @ np.c_[R_W_C2, T_W_C2]
-    # TODO: why are most P_W points behind the camera -> with a negative z value?
+    print(f"Camera matrix 1: {M1}")
+    print(f"Camera matrix 2: {M2}")
     P_W = linearTriangulation(p1, p2, M1, M2)
 
     # project points into cam1 space
     P_C1 = M1 @ P_W
-    # remove points behind camera and to far away, which is weird in this case bc points behind camera
-    mask = np.logical_and(P_C1[2, :] < 0, P_C1[2, :] > -100)
+    mask = np.logical_and(P_C1[2, :] > 0, P_C1[2, :] < 100)
     P_W = P_W[:, mask]
 
     return (R_W_C2, T_W_C2), P_W
@@ -144,7 +142,7 @@ def estimate_next_camera_pose(
 if __name__ == "__main__":
     imgs = []
     # imgs = load_images("data/kitti/05/image_0/", start=0, end=2)
-    dataset = DataSetEnum.PARKING
+    dataset = DataSetEnum.KITTI
 
     K_kitty = np.array(
         [
@@ -158,34 +156,46 @@ if __name__ == "__main__":
     if dataset == DataSetEnum.KITTI:
         img1 = cv.imread("data/kitti/05/image_0/000000.png")
         img2 = cv.imread("data/kitti/05/image_0/000004.png")
+        img3 = cv.imread("data/kitti/05/image_0/000008.png")
         K = K_kitty
     elif dataset == DataSetEnum.PARKING:
         img1 = cv.imread("data/parking/images/img_00000.png")
         img2 = cv.imread("data/parking/images/img_00003.png")
+        img3 = cv.imread("data/parking/images/img_00006.png")
         K = K_parking
     elif dataset == DataSetEnum.MALAGA:
         pass
 
     img1 = cv.cvtColor(img1, cv.COLOR_BGR2GRAY)
     img2 = cv.cvtColor(img2, cv.COLOR_BGR2GRAY)
+    img3 = cv.cvtColor(img3, cv.COLOR_BGR2GRAY)
     imgs = np.asarray(imgs)
     cam1 = Camera(1, K, img1)
     cam2 = Camera(2, K, img2)
+    cam3 = Camera(3, K, img3)
     cam1.calculate_features()
     cam2.calculate_features()
-    (keypoints_a, keypoints_b), (_, _) = correspondence(
+    cam3.calculate_features()
+    (kp_1, kp_2), (_, _) = correspondence(
         cam1.features, cam2.features, 0.99
     )
 
-    # Tried this but could not finish it today. Idea was to write function which can also be used in the
-    # continous case where cam1 is not in the origin
-
-    # (R_W_C2, T_W_C2), P = estimate_next_camera_pose(cam1, keypoints_a, keypoints_b)
+    # (R_W_C2, T_W_C2), P = estimate_next_camera_pose(cam1, kp_1, kp_2)
     # cam2.rotation = R_W_C2
     # cam2.translation = T_W_C2
+
+    # (kp_2, kp_3), (_, _) = correspondence(
+    #     cam2.features, cam3.features, 0.99
+    # )
+
+    # (R_W_C2, T_W_C2), P = estimate_next_camera_pose(cam2, kp_2, kp_3)
+    # cam3.rotation = R_W_C2
+    # cam3.translation = T_W_C2
+
     # cameras = []
     # cameras.append(cam1)
     # cameras.append(cam2)
+    # cameras.append(cam3)
     # plot_plotly(P, cameras)
 
     t1 = time.time()
