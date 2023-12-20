@@ -79,7 +79,7 @@ if __name__ == "__main__":
                                    mode='lines', line=dict(color='green'), showlegend=False))
 
     fig.add_trace(go.Scatter3d(x=[pose[0, 3]], y=[pose[1, 3]], z=[pose[2, 3]],
-                               mode='markers', marker=dict(size=5, color='yellow'), name='Camera poses'))
+                               mode='markers', marker=dict(size=5, color='yellow'), name='Camera poses: ground truth'))
 
     fig.add_trace(go.Scatter3d(x=landmarks[:, 0, 0], y=landmarks[:, 0, 1], z=landmarks[:, 0, 2],
                                mode='markers', marker=dict(size=2, color='purple'), name='Landmarks'))
