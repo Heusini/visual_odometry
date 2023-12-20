@@ -6,7 +6,7 @@ def calculate_fundamental_matrix(points1, points2):
     return F, mask
 
 def calculate_essential_matrix(points1, points2, K):
-    E, mask_e = cv2.findEssentialMat(points1, points2, K, cv2.RANSAC, 0.9999, 1)
+    E, mask_e = cv2.findEssentialMat(points1, points2, K, cv2.RANSAC, 0.9999, 1, 50000)
     return E, mask_e
 
 def calculate_essential_matrix_from_fundamental_matrix(F, K):
