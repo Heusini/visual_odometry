@@ -15,9 +15,9 @@ class DataSetEnum(Enum):
 
 if __name__ == "__main__":
     
-    dataset = DataSetEnum.KITTI
+    dataset = DataSetEnum.PARKING
     stride = 4
-    steps = 3
+    steps = 5
     
     K_kitty = np.array(
         [

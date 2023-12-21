@@ -151,9 +151,8 @@ class Camera:
         cam2.T_to_cam = self.T_to_cam + np.reshape(T_cam2_to_cam1, (3, 1))
         print(f"cam2.T_to_cam: {cam2.T_to_cam}")
         print(f"cam2.R_to_cam: {cam2.R_to_cam}")
-        RT_to_cam = np.eye(4)
-        RT_to_cam[:3, :4] = np.c_[self.R_to_cam, self.T_to_cam]
-        RT_to_world = np.linalg.inv(RT_to_cam)
+        M_to_cam = self.M_to_cam()
+        RT_to_world = np.linalg.inv(M_to_cam)
 
         P_world = RT_to_world @ P_cam1
 
