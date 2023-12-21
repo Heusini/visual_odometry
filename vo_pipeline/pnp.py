@@ -43,8 +43,6 @@ if __name__ == "__main__":
         cam.calculate_features()
         cams.append(cam)
 
-    cams[0].rotation = np.array([[1, 0, 0], [0, 0, -1], [0, 1, 0]])
-    
     Ps = []
     for step in range(steps - 1):
         cam_i = cams[step]
@@ -54,5 +52,3 @@ if __name__ == "__main__":
         Ps.append(P)
 
     plot_plotly(Ps, cams)
-
-    

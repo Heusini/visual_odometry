@@ -21,7 +21,6 @@ class DataSetEnum(Enum):
     PARKING = "parking"
     MALAGA = "malaga"
 
-
 def plot_plotly(Ps : List[np.ndarray], cameras: List[Camera]):
     import plotly.graph_objects as go
     from plotly.subplots import make_subplots
@@ -93,6 +92,13 @@ def plot_plotly(Ps : List[np.ndarray], cameras: List[Camera]):
         for line in camera_wireframe:
             plotly_fig.add_trace(line, 1, 2)
 
+    camera = dict(
+        up=dict(x=0, y=1, z=0),
+        center=dict(x=0, y=0, z=0),
+        eye=dict(x=0, y=2, z=-2)
+    )
+
+    plotly_fig.update_layout(scene_camera=camera, title='default')
     plotly_fig.show()
 
 
