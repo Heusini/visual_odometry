@@ -26,29 +26,6 @@ def essential_matrix_from_fundamental_matrix(fundamental_mat, K):
     # by definition of the fundamental matrix
     return K.T @ fundamental_mat @ K
 
-class Transform:
-    # 3D Transformations
-    def __init__(self, R, t, s=np.array([1, 1, 1])):
-        assert R.shape == (3, 3)
-        assert t.shape == (3, 1)
-        assert s.shape == (3, 1)
-
-        self.R = R
-        self.t = t
-        self.s = s
-
-    def get_mat(self):
-        R = np.zeros((4, 4))
-        R[:3, :3] = self.R
-
-        t = np.zeros((4, 4))
-        t[:3, 3:] = self.t
-
-        s = np.zeros((4, 4))
-        s[:3, :3] = np.diag(self.s)
-
-        return s @ R @ t
-
 # We use SRT transform order: Scale -> Rotation -> Translation    
 class Camera:
     def __init__(
@@ -72,10 +49,9 @@ class Camera:
         Camera object
         """
         self.id = id
-        # To get the camera point in worldframes we do center = -rotation.T @ translation
-        # this rotation is R_CAM_WORLD
+        # Rotation from world to camera
         self.R_to_cam = R_to_cam
-        # this translation is in CAM
+        # Translation from world to camera
         self.T_to_cam = T_to_cam
 
         self.features = None
@@ -144,17 +120,14 @@ class Camera:
         mask = np.logical_and(P_cam1[2, :] > 0, np.abs(np.linalg.norm(P_cam1, axis=0)) < max_distance)
         P_cam1 = P_cam1[:, mask]
 
-        # TODO: check if this is correct
-        # self.rotation is of R_C_W and we want R_C2_W=(R_C_W)^T @ R_C2_C1^T)^T
-        # = R_C2_C1 @ R_C1_W
         cam2.R_to_cam = np.linalg.inv(R_cam2_to_cam1) @ self.R_to_cam
         cam2.T_to_cam = self.T_to_cam + np.reshape(T_cam2_to_cam1, (3, 1))
         print(f"cam2.T_to_cam: {cam2.T_to_cam}")
         print(f"cam2.R_to_cam: {cam2.R_to_cam}")
         M_to_cam = self.M_to_cam()
-        RT_to_world = np.linalg.inv(M_to_cam)
+        M_to_world = np.linalg.inv(M_to_cam)
 
-        P_world = RT_to_world @ P_cam1
+        P_world = M_to_world @ P_cam1
 
         return P_world
 
