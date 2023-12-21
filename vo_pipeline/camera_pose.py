@@ -22,7 +22,7 @@ class DataSetEnum(Enum):
     MALAGA = "malaga"
 
 
-def plot_plotly(P, cameras: List[Camera]):
+def plot_plotly(Ps : List[np.ndarray], cameras: List[Camera]):
     import plotly.graph_objects as go
     from plotly.subplots import make_subplots
 
@@ -31,44 +31,48 @@ def plot_plotly(P, cameras: List[Camera]):
     )
     plotly_fig.update_scenes(aspectmode="data")
     # draw 2D xz scatter plot plus camera position
-    scatter_2D = go.Scatter(
-        x=P[0, :],
-        y=P[1, :],
-        mode="markers",
-        marker=dict(
-            size=3,
-            color="red",  # set color to an array/list of desired values
-            colorscale="Viridis",  # choose a colorscale
-            opacity=0.8,
-        ),
-    )
-    plotly_fig.add_trace(scatter_2D, 1, 1)
+    for P in Ps:
+        scatter_2D = go.Scatter(
+            x=P[0, :],
+            y=P[1, :],
+            mode="markers",
+            marker=dict(
+                size=3,
+                color="red",  # set color to an array/list of desired values
+                colorscale="Viridis",  # choose a colorscale
+                opacity=0.8,
+            ),
+        )
+        plotly_fig.add_trace(scatter_2D, 1, 1)
 
-    center_point_C1 = cameras[0].rotation.T @ (-cameras[0].translation[:, 0])
-    center_point_C2 = cameras[1].rotation.T @ (-cameras[1].translation[:, 0])
-    camera_poses = go.Scatter(
-        x=[center_point_C1[0], center_point_C2[0]],
-        y=[center_point_C1[2], center_point_C2[2]],
-        mode="markers+text",
-        textposition="bottom center",
-        text=["C1", "C2"],
-        marker=dict(size=5, color="blue", colorscale="Viridis", opacity=0.8, symbol=4),
-    )
-    plotly_fig.add_trace(camera_poses, 1, 1)
+    for camera in cameras:
+        centerpoint = camera.rotation.T @ (-camera.translation[:, 0])
+        scatter_2D = go.Scatter(
+            x=[centerpoint[0]],
+            y=[centerpoint[2]],
+            mode="markers+text",
+            textposition="bottom center",
+            text=[f"Cam: {camera.id}"],
+            marker=dict(size=5, color="blue", colorscale="Viridis", opacity=0.8, symbol=4),
+        )
+        plotly_fig.add_trace(scatter_2D, 1, 1)
+
     # draw 3D scatter plot plus camera frames
-    scatter_3d = go.Scatter3d(
-        x=P[0, :],
-        y=P[1, :],
-        z=P[2, :],
-        mode="markers",
-        marker=dict(
-            size=3,
-            color="red",  # set color to an array/list of desired values
-            colorscale="Viridis",  # choose a colorscale
-            opacity=0.8,
-        ),
-    )
-    plotly_fig.add_trace(scatter_3d, 1, 2)
+    for P in Ps:
+        scatter_3d = go.Scatter3d(
+            x=P[0, :],
+            y=P[1, :],
+            z=P[2, :],
+            mode="markers",
+            marker=dict(
+                size=3,
+                # color="red",  # set color to an array/list of desired values
+                colorscale="Viridis",  # choose a colorscale
+                opacity=0.8,
+            ),
+        )
+        plotly_fig.add_trace(scatter_3d, 1, 2)
+
     colors = [
         "black",
         "green",
@@ -79,6 +83,7 @@ def plot_plotly(P, cameras: List[Camera]):
         "pink",
         "brown",
     ]
+
     count = 0
     for camera in cameras:
         camera_wireframe = camera.draw_camera_wireframe(
@@ -87,6 +92,7 @@ def plot_plotly(P, cameras: List[Camera]):
         count = (count + 1) % len(colors)
         for line in camera_wireframe:
             plotly_fig.add_trace(line, 1, 2)
+
     plotly_fig.show()
 
 

@@ -31,10 +31,9 @@ def load_images(
     imgs = []
     for filename in filenames[start:end]:
         img = cv2.imread(path + filename)
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         imgs.append(img)
 
-    return np.array(imgs)
+    return imgs
 
 
 def draw_camera_wireframe(rotation, translation, f, size, cam_name, color="black"):

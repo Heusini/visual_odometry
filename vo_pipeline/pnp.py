@@ -2,29 +2,57 @@ import cv2 as cv
 import numpy as np
 from camera import Camera
 from camera_pose import plot_plotly
-
+from helpers import load_images
+from enum import Enum
 
 def pnp():
     pass
 
+class DataSetEnum(Enum):
+    KITTI = "kitti"
+    PARKING = "parking"
+    MALAGA = "malaga"
 
 if __name__ == "__main__":
+    
+    dataset = DataSetEnum.PARKING
+    stride = 4
+    steps = 3
+    
+    K_kitty = np.array(
+        [
+            [7.188560000000e02, 0, 6.071928000000e02],
+            [0, 7.188560000000e02, 1.852157000000e02],
+            [0, 0, 1],
+        ]
+    )
     K_parking = np.array([[331.37, 0, 320], [0, 369.568, 240], [0, 0, 1]])
-    img1 = cv.imread("data/parking/images/img_00000.png")
-    img2 = cv.imread("data/parking/images/img_00003.png")
-    K = K_parking
-    cam1 = Camera(1, K, img1, np.array([[1, 0, 0], [0, 0, -1], [0, 1, 0]]))
-    cam2 = Camera(2, K, img2)
 
-    matches = {}
-    matches[cam1.id] = {}
-    matches[cam1.id][cam2.id] = []
+    if dataset == DataSetEnum.KITTI:
+        K = K_kitty
+        imgs = load_images("data/kitti/05/image_0/", start=0, end=stride*steps)
+    elif dataset == DataSetEnum.PARKING:
+        K = K_parking
+        imgs = load_images("data/parking/images/", start=0, end=stride*steps)
 
-    cam1.calculate_features()
-    cam2.calculate_features()
+    cams = []
 
-    (m1, m2), (_, _) = cam1.calculate_matches(cam2)
+    for step in range(steps):
+        img = imgs[int(step*stride)]
+        cam = Camera(step, K, img)
+        cam.calculate_features()
+        cams.append(cam)
 
-    P = cam1.calculate_points_in_world(cam2, m1, m2)
+    cams[0].rotation = np.array([[1, 0, 0], [0, 0, -1], [0, 1, 0]])
+    
+    Ps = []
+    for step in range(steps - 1):
+        cam_i = cams[step]
+        cam_j = cams[step+1]
+        (m1, m2), (_, _) = cam_i.calculate_matches(cam_j)
+        P = cam_i.calculate_points_in_world(cam_j, m1, m2)
+        Ps.append(P)
 
-    plot_plotly(P, [cam1, cam2])
+    plot_plotly(Ps, cams)
+
+    
