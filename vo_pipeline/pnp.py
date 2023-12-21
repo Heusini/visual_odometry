@@ -15,7 +15,7 @@ class DataSetEnum(Enum):
 
 if __name__ == "__main__":
     
-    dataset = DataSetEnum.PARKING
+    dataset = DataSetEnum.KITTI
     stride = 4
     steps = 3
     

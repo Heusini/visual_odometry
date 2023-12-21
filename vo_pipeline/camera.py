@@ -103,6 +103,12 @@ class Camera:
         M2 = cam2.K @ np.c_[R_CAM2_CAM1, c2T_CAM2_CAM1]
         P = linearTriangulation(p1, p2, M1, M2)
 
+        # filer points behind camera and far away
+        max_distance = 100
+        mask = np.logical_and(P[2, :] > 0, np.abs(np.linalg.norm(P, axis=0)) < max_distance)
+        P = P[:, mask]
+
+
         # TODO: check if this is correct
         # self.rotation is of R_C_W and we want R_C2_W=(R_C_W)^T @ R_C2_C1^T)^T
         # = R_C2_C1 @ R_C1_W
