@@ -66,6 +66,8 @@ if __name__ == "__main__":
 
     pose, landmarks = init.initialize(frame1_gray, frame2_gray, K)
 
+
+    # dynamic 3D plot
     fig = go.Figure()
 
     fig.add_trace(go.Scatter3d(x=init.points1[:, 0], y=init.points1[:, 1], z=np.zeros(init.points1.shape[0]),
