@@ -26,15 +26,38 @@ def essential_matrix_from_fundamental_matrix(fundamental_mat, K):
     # by definition of the fundamental matrix
     return K.T @ fundamental_mat @ K
 
+class Transform:
+    # 3D Transformations
+    def __init__(self, R, t, s=np.array([1, 1, 1])):
+        assert R.shape == (3, 3)
+        assert t.shape == (3, 1)
+        assert s.shape == (3, 1)
 
+        self.R = R
+        self.t = t
+        self.s = s
+
+    def get_mat(self):
+        R = np.zeros((4, 4))
+        R[:3, :3] = self.R
+
+        t = np.zeros((4, 4))
+        t[:3, 3:] = self.t
+
+        s = np.zeros((4, 4))
+        s[:3, :3] = np.diag(self.s)
+
+        return s @ R @ t
+
+# We use SRT transform order: Scale -> Rotation -> Translation    
 class Camera:
     def __init__(
         self,
         id: int,
         K: np.ndarray,
         image,
-        rotation=np.eye(3),
-        translation=np.zeros((3, 1)),
+        R_to_cam=np.eye(3),
+        T_to_cam=np.zeros((3, 1)),
     ):
         """
         Parameters
@@ -51,9 +74,9 @@ class Camera:
         self.id = id
         # To get the camera point in worldframes we do center = -rotation.T @ translation
         # this rotation is R_CAM_WORLD
-        self.rotation = rotation
+        self.R_to_cam = R_to_cam
         # this translation is in CAM
-        self.translation = translation
+        self.T_to_cam = T_to_cam
 
         self.features = None
         self.matches = None
@@ -61,9 +84,22 @@ class Camera:
         self.image = image
         self.K = K
 
-    def get_center_in_world(self):
-        return -self.rotation.T @ self.translation[:, 0]
-
+    def R_to_world(self):
+        return np.linalg.inv(self.R_to_cam)
+    
+    def T_to_world(self):
+        return -self.T_to_cam
+    
+    def M_to_cam(self):
+        M = np.eye(4)
+        M[:3, :3] = self.R_to_cam
+        M[:3, 3:] = self.T_to_cam
+        return M
+    
+    def M_to_world(self):
+        M = self.M_to_cam()
+        return np.linalg.inv(M)
+    
     def calculate_features(self):
         self.features = feature_detection(self.image)
 
@@ -94,51 +130,53 @@ class Camera:
         ).T
         p1 = p1[:, mask_f.ravel() == 1]
         p2 = p2[:, mask_f.ravel() == 1]
-        Rots, u3 = decomposeEssentialMatrix(E)
-        R_CAM2_CAM1, c2T_CAM2_CAM1 = disambiguateRelativePose(
-            Rots, u3, p1, p2, self.K, self.K
+        R, T = decomposeEssentialMatrix(E)
+        R_cam2_to_cam1, T_cam2_to_cam1 = disambiguateRelativePose(
+            R, T, p1, p2, self.K, self.K
         )
 
         M1 = self.K @ np.eye(3, 4)
-        M2 = cam2.K @ np.c_[R_CAM2_CAM1, c2T_CAM2_CAM1]
-        P = linearTriangulation(p1, p2, M1, M2)
+        M2 = cam2.K @ np.c_[R_cam2_to_cam1, T_cam2_to_cam1]
+        P_cam1 = linearTriangulation(p1, p2, M1, M2)
 
         # filer points behind camera and far away
         max_distance = 100
-        mask = np.logical_and(P[2, :] > 0, np.abs(np.linalg.norm(P, axis=0)) < max_distance)
-        P = P[:, mask]
-
+        mask = np.logical_and(P_cam1[2, :] > 0, np.abs(np.linalg.norm(P_cam1, axis=0)) < max_distance)
+        P_cam1 = P_cam1[:, mask]
 
         # TODO: check if this is correct
         # self.rotation is of R_C_W and we want R_C2_W=(R_C_W)^T @ R_C2_C1^T)^T
         # = R_C2_C1 @ R_C1_W
-        cam2.rotation = R_CAM2_CAM1 @ self.rotation
+        cam2.R_to_cam = np.linalg.inv(R_cam2_to_cam1) @ self.R_to_cam
+        cam2.T_to_cam = self.T_to_cam + np.reshape(T_cam2_to_cam1, (3, 1))
+        print(f"cam2.T_to_cam: {cam2.T_to_cam}")
+        print(f"cam2.R_to_cam: {cam2.R_to_cam}")
+        RT_to_cam = np.eye(4)
+        RT_to_cam[:3, :4] = np.c_[self.R_to_cam, self.T_to_cam]
+        RT_to_world = np.linalg.inv(RT_to_cam)
 
-        cam2.translation = c2T_CAM2_CAM1 + (R_CAM2_CAM1 @ self.translation)
+        P_world = RT_to_world @ P_cam1
 
-        M = np.eye(4)
-        M[:3, :3] = self.rotation.T
-        M[:3, 3] = -self.rotation.T @ self.translation[:, 0]
-        print(M)
-
-        P = M @ P
-
-        return P
+        return P_world
 
     def draw_camera_wireframe(self, f, size, cam_name, color="black"):
         import plotly.graph_objects as go
 
-        p1_c = np.array([-size / 2, -size / 2, f])
-        p2_c = np.array([size / 2, -size / 2, f])
-        p3_c = np.array([size / 2, size / 2, f])
-        p4_c = np.array([-size / 2, size / 2, f])
+        p1_c = np.array([-size / 2, -size / 2, f, 1.0])
+        p2_c = np.array([size / 2, -size / 2, f, 1.0])
+        p3_c = np.array([size / 2, size / 2, f, 1.0])
+        p4_c = np.array([-size / 2, size / 2, f, 1.0])
 
-        p1_w = self.rotation.T @ (p1_c - self.translation[:, 0])
-        p2_w = self.rotation.T @ (p2_c - self.translation[:, 0])
-        p3_w = self.rotation.T @ (p3_c - self.translation[:, 0])
-        p4_w = self.rotation.T @ (p4_c - self.translation[:, 0])
+        M_to_world = self.M_to_world()
 
-        center_point = self.get_center_in_world()
+        print(f"M_to_world: {M_to_world}")
+
+        p1_w = M_to_world @ p1_c
+        p2_w = M_to_world @ p2_c
+        p3_w = M_to_world @ p3_c
+        p4_w = M_to_world @ p4_c
+
+        center_point = self.T_to_cam
         print(center_point.shape)
 
         # draw camera wireframe

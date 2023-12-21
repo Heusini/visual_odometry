@@ -34,11 +34,10 @@ def plot_plotly(Ps : List[np.ndarray], cameras: List[Camera]):
     for P in Ps:
         scatter_2D = go.Scatter(
             x=P[0, :],
-            y=P[1, :],
+            y=P[2, :],
             mode="markers",
             marker=dict(
                 size=3,
-                color="red",  # set color to an array/list of desired values
                 colorscale="Viridis",  # choose a colorscale
                 opacity=0.8,
             ),
@@ -46,16 +45,17 @@ def plot_plotly(Ps : List[np.ndarray], cameras: List[Camera]):
         plotly_fig.add_trace(scatter_2D, 1, 1)
 
     for camera in cameras:
-        centerpoint = camera.rotation.T @ (-camera.translation[:, 0])
+        centerpoint = camera.T_to_cam.ravel()
         scatter_2D = go.Scatter(
             x=[centerpoint[0]],
             y=[centerpoint[2]],
             mode="markers+text",
             textposition="bottom center",
             text=[f"Cam: {camera.id}"],
-            marker=dict(size=5, color="blue", colorscale="Viridis", opacity=0.8, symbol=4),
+            marker=dict(size=5, colorscale="Viridis", opacity=0.8, symbol=4),
         )
         plotly_fig.add_trace(scatter_2D, 1, 1)
+
 
     # draw 3D scatter plot plus camera frames
     for P in Ps:
@@ -112,7 +112,7 @@ def estimate_next_camera_pose(
 
     # camera1 in world coordinates
     T_W_C1 = np.reshape(cam1.translation, (3, 1))
-    R_W_C1 = cam1.rotation
+    R_W_C1 = cam1.R_to_world
 
     # find rotation and translation from camera 2 to camera 1
     R_C2_C1, T_C2_C1 = decomposeEssentialMatrix(E)
@@ -122,7 +122,7 @@ def estimate_next_camera_pose(
     T_C2_C1 = T_C2_C1.reshape((3, 1))
 
     # compute the camera projection matrices
-    M1 = K @ np.c_[cam1.rotation, cam1.translation]
+    M1 = K @ np.c_[cam1.R_to_world, cam1.translation]
     # position of camera2 in world coordinates
     T_W_C2 = T_W_C1 - R_C2_C1 @ T_C2_C1
     R_W_C2 = R_W_C1 @ R_C2_C1.T
@@ -255,8 +255,8 @@ if __name__ == "__main__":
     # rotate camera 1
     R_W_C1 = np.array([[1, 0, 0], [0, 0, 1], [0, -1, 0]])
 
-    cam1.rotation = R_W_C1.T
-    cam2.rotation = (R_W_C1 @ R_C2_C1.T).T
+    cam1.R_to_world = R_W_C1.T
+    cam2.R_to_world = (R_W_C1 @ R_C2_C1.T).T
     cam2.translation = T_C2_C1
 
     print(f"Center of camera 2 in world coordinates: {T_W_C2}")
@@ -264,7 +264,7 @@ if __name__ == "__main__":
     cameras.append(cam2)
     print(P.shape)
     R = np.eye(4)
-    R[:3, :3] = cam1.rotation
+    R[:3, :3] = cam1.R_to_world
     P = R @ P
 
     plot_plotly(P, cameras)
