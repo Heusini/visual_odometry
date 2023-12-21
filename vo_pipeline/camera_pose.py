@@ -44,7 +44,7 @@ def plot_plotly(Ps : List[np.ndarray], cameras: List[Camera]):
         plotly_fig.add_trace(scatter_2D, 1, 1)
 
     for camera in cameras:
-        centerpoint = camera.T_to_cam.ravel()
+        centerpoint = -camera.T_to_cam.ravel()
         scatter_2D = go.Scatter(
             x=[centerpoint[0]],
             y=[centerpoint[2]],
