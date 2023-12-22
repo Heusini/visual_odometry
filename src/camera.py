@@ -13,13 +13,11 @@ def get_fundamental_matrix(keypoints_a, keypoints_b):
     )
     return fundamental_mat, mask
 
-
 def get_essential_matrix(point_a, point_b, K):
     essential_mat, mask_e = cv.findEssentialMat(
         point_a, point_b, K, cv.RANSAC, 0.9999, 1
     )
     return essential_mat, mask_e
-
 
 def essential_matrix_from_fundamental_matrix(fundamental_mat, K):
     # by definition of the fundamental matrix

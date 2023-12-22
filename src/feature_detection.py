@@ -17,7 +17,6 @@ def feature_detection(img) -> (List[Keypoints], np.ndarray):
 
     return kp, des
 
-
 def feature_matching(des1, des2, threshold=0.99):
     bf = cv.BFMatcher()
     matches = bf.knnMatch(des1, des2, k=2)
@@ -28,7 +27,6 @@ def feature_matching(des1, des2, threshold=0.99):
             good.append(m)
 
     return good
-
 
 if __name__ == "__main__":
     import time
