@@ -2,7 +2,7 @@ from typing import Optional, Callable, List
 import os
 import cv2
 
-class ImageLoader:
+class PathLoader:
     def __init__(self, 
         path: str, 
         start : Optional[int] = None,
@@ -24,15 +24,16 @@ class ImageLoader:
         self.start = start if start is not None else 0
         self.stop = stop if stop is not None else len(self.filenames)
         self.stride = stride if stride is not None else 1
-        self.state = self.start
 
         self.path = path    
-    
+
     def __iter__(self):
+        self.state = self.start
+        return self
+    
+    def __next__(self):
         self.state += self.stride
         if self.state >= self.stop:
             raise StopIteration
-        
-        img = cv2.imread(self.path + self.filenames[self.state])
-
-        return img
+    
+        return self.path + self.filenames[self.state]

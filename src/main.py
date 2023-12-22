@@ -2,7 +2,7 @@ from enum import Enum
 import cv2 as cv
 import numpy as np
 from camera import Camera
-from utils.image_loader import ImageLoader
+from utils.image_loader import PathLoader
 
 # Constants
 init_bandwidth = 4
@@ -32,10 +32,10 @@ def main():
         K = K_parking
         path = "data/parking/images/"
 
-    img_loader = ImageLoader(path, start=0, stride=init_bandwidth)
+    path_loader = PathLoader(path, start=0, stride=init_bandwidth)
 
-    cam_0 = Camera(0, K, next(img_loader))
-    cam_1 = Camera(1, K, next(img_loader))
+    cam_0 = Camera(0, K, next(path_loader))
+    cam_1 = Camera(1, K, next(path_loader))
     cam_0.calculate_features()
     cam_1.calculate_features()
 
