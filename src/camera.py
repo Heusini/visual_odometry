@@ -1,11 +1,10 @@
 import cv2 as cv
 import numpy as np
 from correspondence import correspondence
-from exercise_helpers.decompose_essential_matrix import decomposeEssentialMatrix
-from exercise_helpers.disambiguate_relative_pose import disambiguateRelativePose
-from exercise_helpers.linear_triangulation import linearTriangulation
+from utils.decompose_essential_matrix import decomposeEssentialMatrix
+from utils.disambiguate_relative_pose import disambiguateRelativePose
+from utils.linear_triangulation import linearTriangulation
 from feature_detection import feature_detection, feature_matching
-
 
 def get_fundamental_matrix(keypoints_a, keypoints_b):
     # CV2 uses the 8-point algorithm when n > 8
@@ -51,7 +50,7 @@ class Camera:
         self.id = id
         # Rotation from world to camera
         self.R_to_cam = R_to_cam
-        # Translation from world to camera
+        # Translation from world to camera. -T_to_cam is the camera origin in world coordinates
         self.T_to_cam = T_to_cam
 
         self.features = None
@@ -82,7 +81,7 @@ class Camera:
     def calculate_matches(self, other: "Camera", threshold=0.7):
         return correspondence(self.features, other.features, threshold)
 
-    def calculate_points_in_world(
+    def process_next_frame(
         self, cam2: "Camera", matched_points_cam1, matched_points_cam2
     ):
         """

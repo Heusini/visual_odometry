@@ -48,7 +48,7 @@ if __name__ == "__main__":
         cam_i = cams[step]
         cam_j = cams[step+1]
         (m1, m2), (_, _) = cam_i.calculate_matches(cam_j)
-        P = cam_i.calculate_points_in_world(cam_j, m1, m2)
+        P = cam_i.process_next_frame(cam_j, m1, m2)
         Ps.append(P)
 
     plot_plotly(Ps, cams)

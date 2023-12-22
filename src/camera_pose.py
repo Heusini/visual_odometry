@@ -10,9 +10,9 @@ from camera import (
     get_fundamental_matrix,
 )
 from correspondence import correspondence
-from exercise_helpers.decompose_essential_matrix import decomposeEssentialMatrix
-from exercise_helpers.disambiguate_relative_pose import disambiguateRelativePose
-from exercise_helpers.linear_triangulation import linearTriangulation
+from utils.decompose_essential_matrix import decomposeEssentialMatrix
+from utils.disambiguate_relative_pose import disambiguateRelativePose
+from utils.linear_triangulation import linearTriangulation
 from helpers import draw_camera_wireframe
 
 

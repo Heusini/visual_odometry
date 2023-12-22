@@ -1,6 +1,5 @@
 import numpy as np
-from exercise_helpers.linear_triangulation import linearTriangulation
-
+from utils.linear_triangulation import linearTriangulation
 
 def disambiguateRelativePose(Rots, u3, points0_h, points1_h, K1, K2):
     """DISAMBIGUATERELATIVEPOSE- finds the correct relative camera pose (among four

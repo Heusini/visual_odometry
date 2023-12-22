@@ -2,6 +2,8 @@
 data/*
 *.requirements.txt
 **/__pycache__/*
+.idea/*
+.vscode/*
 
 # Allow download python file
 !data/download.py
