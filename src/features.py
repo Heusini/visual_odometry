@@ -2,6 +2,8 @@ import cv2 as cv
 import numpy as np
 from typing import NamedTuple, List, Any
 
+from cv2 import calcOpticalFlowPyrLK
+
 # this is identical to the openCV KeyPoint class -> do not change
 class Keypoint(NamedTuple):
     pt : np.ndarray # 2D location of the keypoint
@@ -18,7 +20,8 @@ class Features(NamedTuple):
     def get_positions(self) -> np.ndarray:
         ls = [ k.pt for k in self.keypoints ]
         return np.array(ls)
-        
+    
+
 def detect_features(img) -> Features:
     # gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY
     sift = cv.SIFT_create()
@@ -76,7 +79,7 @@ if __name__ == "__main__":
     t2 = time.time()
     features_j = detect_features(img_j)
     t3 = time.time()
-
+    
     matching_features_i, matching_features_j = match_features(features_i, features_j, threshold=0.99)
     print(f"Number of matching features: {len(matching_features_i.keypoints)}")
 

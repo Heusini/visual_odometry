@@ -36,6 +36,7 @@ python data/download.py
 - Triangulation $\sqrt{}$
 
 
-## Unceartainties
+## Documentation
 
-- 
+### Major classes and important architecture decisions
+

@@ -12,11 +12,6 @@ from utils.linear_triangulation import linearTriangulation
 from utils.path_loader import PathLoader
 from plot_points_cameras import plot_points_cameras
 
-class DataSetEnum(Enum):
-    KITTI = "kitti"
-    PARKING = "parking"
-    MALAGA = "malaga"
-
 def pnp(
     state_i : FrameSate,
     state_j : FrameSate,

@@ -1,8 +1,9 @@
 from enum import Enum
 import cv2 as cv
 import numpy as np
-from camera import Camera
-from utils.image_loader import PathLoader
+from state import FrameSate
+from utils.path_loader import PathLoader
+from pnp import pnp
 
 # Constants
 init_bandwidth = 4
@@ -33,14 +34,14 @@ def main():
         path = "data/parking/images/"
 
     path_loader = PathLoader(path, start=0, stride=init_bandwidth)
+    path_iter = iter(path_loader)
 
-    cam_0 = Camera(0, K, next(path_loader))
-    cam_1 = Camera(1, K, next(path_loader))
-    cam_0.calculate_features()
-    cam_1.calculate_features()
+    # initialize first two states, corresponding features are computed with initialization
+    state_0 = FrameSate(0, next(path_iter))
+    state_1 = FrameSate(init_bandwidth, next(path_iter))
 
-    (m1, m2), (_, _) = cam_0.calculate_matches(cam_1)
-    P = cam_0.calculate_points_in_world(cam_1, m1, m2)
+    # computes landmarks and pose for the first two frames
+    pnp(state_0, state_1, K)
     
 
 if __name__ == '__main__':

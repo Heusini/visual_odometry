@@ -1,4 +1,4 @@
-from typing import NamedTuple, Optional
+from typing import Optional
 import numpy as np
 from features import Features
 import cv2 as cv
