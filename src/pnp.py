@@ -31,26 +31,31 @@ def pnp(
     p_i = p_i[:, mask_f.ravel() == 1]
     p_j = p_j[:, mask_f.ravel() == 1]
     R, T = decomposeEssentialMatrix(E)
-    R_j_to_i, T_j_to_i = disambiguateRelativePose(R, T, p_i, p_j, K, K)
+    R_camj_to_cami, T_camj_to_cami = disambiguateRelativePose(R, T, p_i, p_j, K, K)
 
-    M1 = K @ np.eye(3, 4)
-    M2 = K @ np.c_[R_j_to_i, T_j_to_i]
-    P_i = linearTriangulation(p_i, p_j, M1, M2)
+    transform_j = Transform3D(
+        np.linalg.inv(R_camj_to_cami) @ state_i.world_to_cam.R,
+        state_i.world_to_cam.t + np.reshape(T_camj_to_cami, (3, 1))
+    )
+
+    M1 = K @ state_i.world_to_cam.to_mat()[0:3, :]
+    M2 = K @ transform_j.to_mat()[0:3, :]
+    P_world = linearTriangulation(p_i, p_j, M1, M2)
 
     # filer points behind camera and far away
     max_distance = 100
-    mask = np.logical_and(P_i[2, :] > 0, np.abs(np.linalg.norm(P_i, axis=0)) < max_distance)
-    P_i = P_i[:, mask]
+    P_cam_i = state_i.world_to_cam.to_mat() @ P_world
+    mask = np.logical_and(P_cam_i[2, :] > 0, np.abs(np.linalg.norm(P_cam_i, axis=0)) < max_distance)
+    P_world = P_world[:, mask]
 
-    transform_j_R = np.linalg.inv(R_j_to_i) @ state_i.world_to_cam.R
-    transform_j_T = state_i.world_to_cam.t + np.reshape(T_j_to_i, (3, 1))
-
-    M_to_cam = np.linalg.inv(state_i.world_to_cam.to_homogeneous_matrix())
+    M_to_cam = np.linalg.inv(state_i.world_to_cam.to_mat())
     M_to_world = np.linalg.inv(M_to_cam)
 
-    P_world = M_to_world @ P_i
+    print(f"M_to_world: {M_to_world}")
 
-    state_j.world_to_cam = Transform3D(transform_j_R, transform_j_T)
+    #P_world = M_to_world @ P_world
+
+    state_j.world_to_cam = transform_j
     state_j.landmarks = P_world
     state_i.landmarks = P_world
 
@@ -63,8 +68,8 @@ class DataSetEnum(Enum):
 
 if __name__ == "__main__":
     
-    steps = 4
-    stride = 4
+    steps = 20
+    stride = 2
     dataset = DataSetEnum.KITTI
 
     K_kitty = np.array(
@@ -83,7 +88,7 @@ if __name__ == "__main__":
         K = K_parking
         path = "data/parking/images/"
 
-    path_loader = PathLoader(path, start=0, stride=stride)
+    path_loader = PathLoader(path, start=115, stride=stride)
     path_iter = iter(path_loader)
 
     states = []

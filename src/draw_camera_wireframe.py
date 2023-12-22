@@ -9,16 +9,14 @@ def draw_camera_wireframe(world_to_cam : Transform3D, f, size, cam_name, color="
     p3_c = np.array([size / 2, size / 2, f, 1.0])
     p4_c = np.array([-size / 2, size / 2, f, 1.0])
 
-    M_to_world = np.linalg.inv(world_to_cam.to_homogeneous_matrix())
-
-    print(f"M_to_world: {M_to_world}")
+    M_to_world = np.linalg.inv(world_to_cam.to_mat())
 
     p1_w = M_to_world @ p1_c
     p2_w = M_to_world @ p2_c
     p3_w = M_to_world @ p3_c
     p4_w = M_to_world @ p4_c
 
-    center_point = world_to_cam.t
+    center_point = -world_to_cam.t
     print(center_point.shape)
 
     # draw camera wireframe

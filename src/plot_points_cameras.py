@@ -7,7 +7,6 @@ def plot_points_cameras(Ps : List[np.ndarray], cameras: List[Transform3D]):
     import plotly.graph_objects as go
     from plotly.subplots import make_subplots
 
-    print(f"Ps: {Ps}")  
     plotly_fig = make_subplots(
         rows=1, cols=2, specs=[[{"type": "scatter"}, {"type": "scatter3d"}]]
     )

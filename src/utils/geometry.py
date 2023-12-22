@@ -8,7 +8,7 @@ class Transform3D():
         self.R = R if R is not None else np.eye(3)
         self.t = t if t is not None else np.zeros((3, 1))
         
-    def to_homogeneous_matrix(self):
+    def to_mat(self):
         M = np.eye(4)
         M[:3, :3] = self.R
         M[:3, 3:] = self.t
