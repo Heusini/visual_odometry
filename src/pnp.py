@@ -33,29 +33,34 @@ def pnp(
     R, T = decomposeEssentialMatrix(E)
     R_camj_to_cami, T_camj_to_cami = disambiguateRelativePose(R, T, p_i, p_j, K, K)
 
-    transform_j = Transform3D(
-        np.linalg.inv(R_camj_to_cami) @ state_i.world_to_cam.R,
-        state_i.world_to_cam.t + np.reshape(T_camj_to_cami, (3, 1))
-    )
+    #M1 = K @ state_i.world_to_cam.to_mat()[0:3, :]
+    #M2 = K @ transform_j.to_mat()[0:3, :]
+    # P_world = linearTriangulation(p_i, p_j, M1, M2)
+    # # filer points behind camera and far away
+    # max_distance = 100
+    # P_cam_i = state_i.world_to_cam.to_mat() @ P_world
+    # mask = np.logical_and(P_cam_i[2, :] > 0, np.abs(np.linalg.norm(P_cam_i, axis=0)) < max_distance)
+    # P_world = P_world[:, mask]
 
-    M1 = K @ state_i.world_to_cam.to_mat()[0:3, :]
-    M2 = K @ transform_j.to_mat()[0:3, :]
-    P_world = linearTriangulation(p_i, p_j, M1, M2)
+    # M_to_cam = np.linalg.inv(state_i.world_to_cam.to_mat())
+    # M_to_world = np.linalg.inv(M_to_cam)
+
+    M1 = K @ np.eye(3, 4)
+    M2 = K @ np.c_[R_camj_to_cami, T_camj_to_cami]
+    P_cami = linearTriangulation(p_i, p_j, M1, M2)
 
     # filer points behind camera and far away
     max_distance = 100
-    P_cam_i = state_i.world_to_cam.to_mat() @ P_world
-    mask = np.logical_and(P_cam_i[2, :] > 0, np.abs(np.linalg.norm(P_cam_i, axis=0)) < max_distance)
-    P_world = P_world[:, mask]
+    mask = np.logical_and(P_cami[2, :] > 0, np.abs(np.linalg.norm(P_cami, axis=0)) < max_distance)
+    P_cami = P_cami[:, mask]
 
-    M_to_cam = np.linalg.inv(state_i.world_to_cam.to_mat())
-    M_to_world = np.linalg.inv(M_to_cam)
+    R_camj_to_world = np.linalg.inv(R_camj_to_cami) @ state_i.cam_to_world.R
+    T_camj_to_world = state_i.cam_to_world.t - np.reshape(T_camj_to_cami, (3, 1))
 
-    print(f"M_to_world: {M_to_world}")
+    # TODO: I have no idea why we need to Rotate and then Translate here, meanwhile when getting the camera pos we need to Translate and then Rotate
+    P_world = state_i.cam_to_world.Rt() @ P_cami
 
-    #P_world = M_to_world @ P_world
-
-    state_j.world_to_cam = transform_j
+    state_j.cam_to_world = Transform3D(R_camj_to_world, T_camj_to_world)
     state_j.landmarks = P_world
     state_i.landmarks = P_world
 
@@ -68,7 +73,7 @@ class DataSetEnum(Enum):
 
 if __name__ == "__main__":
     
-    steps = 20
+    steps = 10
     stride = 2
     dataset = DataSetEnum.KITTI
 
@@ -88,7 +93,7 @@ if __name__ == "__main__":
         K = K_parking
         path = "data/parking/images/"
 
-    path_loader = PathLoader(path, start=115, stride=stride)
+    path_loader = PathLoader(path, start=10, stride=stride)
     path_iter = iter(path_loader)
 
     states = []
@@ -102,5 +107,5 @@ if __name__ == "__main__":
     
     plot_points_cameras(
         [state.landmarks for state in states[0:steps-1]],
-        [state.world_to_cam for state in states]
+        [state.cam_to_world for state in states]
     )

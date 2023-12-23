@@ -8,7 +8,7 @@ from features import detect_features
 class FrameSate():
     t : int
     img_path : str
-    world_to_cam : Transform3D
+    cam_to_world : Transform3D
     features : Features
     landmarks : np.ndarray # $X$ from proj. statement
 
@@ -22,6 +22,6 @@ class FrameSate():
     ):
         self.t = t
         self.img_path = img_path
-        self.world_to_cam = world_to_cam if world_to_cam is not None else Transform3D()
+        self.cam_to_world = world_to_cam if world_to_cam is not None else Transform3D()
         self.features = features if features else detect_features(cv.imread(img_path))
         self.landmarks = landmarks

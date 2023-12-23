@@ -13,6 +13,24 @@ class Transform3D():
         M[:3, :3] = self.R
         M[:3, 3:] = self.t
         return M
+    
+    def get_R(self):
+        M = np.eye(4)
+        M[:3, :3] = self.R
+        return M
+    
+    def get_t(self):
+        M = np.eye(4)
+        M[:3, 3:] = self.t
+        return M
+    
+    # rotate and then translate
+    def Rt(self):
+        return self.get_t() @ self.get_R()
+    
+    # translate and then rotate
+    def tR(self):
+        return self.get_R() @ self.get_t()
 
 
 def calc_fundamental_mat(points1, points2):

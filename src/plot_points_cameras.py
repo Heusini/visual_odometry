@@ -3,7 +3,7 @@ import numpy as np
 from state import Transform3D
 from draw_camera_wireframe import draw_camera_wireframe
 
-def plot_points_cameras(Ps : List[np.ndarray], cameras: List[Transform3D]):
+def plot_points_cameras(Ps : List[np.ndarray], to_world_transforms: List[Transform3D]):
     import plotly.graph_objects as go
     from plotly.subplots import make_subplots
 
@@ -25,8 +25,9 @@ def plot_points_cameras(Ps : List[np.ndarray], cameras: List[Transform3D]):
         )
         plotly_fig.add_trace(scatter_2D, 1, 1)
 
-    for i, camera in enumerate(cameras):
-        centerpoint = -camera.t.ravel()
+    for i, transform in enumerate(to_world_transforms):
+        centerpoint = transform.tR() @ np.array([0, 0, 0, 1])
+        print(centerpoint)
         scatter_2D = go.Scatter(
             x=[centerpoint[0]],
             y=[centerpoint[2]],
@@ -66,19 +67,19 @@ def plot_points_cameras(Ps : List[np.ndarray], cameras: List[Transform3D]):
     ]
 
     count = 0
-    for i, camera in enumerate(cameras):
+    for i, transform in enumerate(to_world_transforms):
         camera_wireframe = draw_camera_wireframe(
-            camera, 0.5, 0.5, f"Cam: {i}", colors[count]
+            transform, 0.5, 0.5, f"Cam: {i}", colors[count]
         )
         count = (count + 1) % len(colors)
         for line in camera_wireframe:
             plotly_fig.add_trace(line, 1, 2)
 
-    camera = dict(
-        up=dict(x=0, y=1, z=0),
+    transform = dict(
+        up=dict(x=0, y=-1, z=0),
         center=dict(x=0, y=0, z=0),
-        eye=dict(x=0, y=2, z=-2)
+        eye=dict(x=0, y=-2, z=-2)
     )
 
-    plotly_fig.update_layout(scene_camera=camera, title='default')
+    plotly_fig.update_layout(scene_camera=transform, title='default')
     plotly_fig.show()
