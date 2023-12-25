@@ -34,6 +34,6 @@ class PathLoader:
     def __next__(self):
         self.state += self.stride
         if self.state >= self.stop:
-            raise StopIteration
-    
-        return self.path + self.filenames[self.state]
+            return "", True
+        else:
+            return self.path + self.filenames[self.state], False
