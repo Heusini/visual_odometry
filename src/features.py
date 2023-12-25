@@ -30,7 +30,7 @@ def detect_features(img) -> Features:
 def match_features(
     feature_set_i : Features,
     feature_set_j : Features,
-    threshold=0.99) -> (Features, Features):
+    threshold=0.6) -> (Features, Features):
 
     bf = cv.BFMatcher()
     matches = bf.knnMatch(

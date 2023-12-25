@@ -12,6 +12,8 @@ from utils.linear_triangulation import linearTriangulation
 from utils.path_loader import PathLoader
 from plot_points_cameras import plot_points_cameras
 
+# Note that order is scale rotate translate
+# When composing matrices this means T * R * S
 def pnp(
     state_i : FrameSate,
     state_j : FrameSate,
@@ -31,36 +33,30 @@ def pnp(
     p_i = p_i[:, mask_f.ravel() == 1]
     p_j = p_j[:, mask_f.ravel() == 1]
     R, T = decomposeEssentialMatrix(E)
-    R_camj_to_cami, T_camj_to_cami = disambiguateRelativePose(R, T, p_i, p_j, K, K)
+    # Rotate -> Translate order
+    R_cami_to_camj, T_cami_to_camj = disambiguateRelativePose(R, T, p_i, p_j, K, K)
 
-    #M1 = K @ state_i.world_to_cam.to_mat()[0:3, :]
-    #M2 = K @ transform_j.to_mat()[0:3, :]
-    # P_world = linearTriangulation(p_i, p_j, M1, M2)
-    # # filer points behind camera and far away
-    # max_distance = 100
-    # P_cam_i = state_i.world_to_cam.to_mat() @ P_world
-    # mask = np.logical_and(P_cam_i[2, :] > 0, np.abs(np.linalg.norm(P_cam_i, axis=0)) < max_distance)
-    # P_world = P_world[:, mask]
+    M_cami_to_camj = np.eye(4)
+    M_cami_to_camj[:3, :] = np.c_[R_cami_to_camj, T_cami_to_camj]
 
-    # M_to_cam = np.linalg.inv(state_i.world_to_cam.to_mat())
-    # M_to_world = np.linalg.inv(M_to_cam)
+    M_camj_to_cami = np.linalg.inv(M_cami_to_camj)
+    M_cami_to_world = state_i.cam_to_world
+    M_camj_to_world = M_cami_to_world @ M_camj_to_cami
 
-    M1 = K @ np.eye(3, 4)
-    M2 = K @ np.c_[R_camj_to_cami, T_camj_to_cami]
-    P_cami = linearTriangulation(p_i, p_j, M1, M2)
+    P_cami = linearTriangulation(
+        p_i, 
+        p_j, 
+        K @ np.eye(3, 4),
+        K @ M_cami_to_camj[0:3, :])
 
-    # filer points behind camera and far away
+    #filer points behind camera and far away
     max_distance = 100
     mask = np.logical_and(P_cami[2, :] > 0, np.abs(np.linalg.norm(P_cami, axis=0)) < max_distance)
     P_cami = P_cami[:, mask]
 
-    R_camj_to_world = np.linalg.inv(R_camj_to_cami) @ state_i.cam_to_world.R
-    T_camj_to_world = state_i.cam_to_world.t - np.reshape(T_camj_to_cami, (3, 1))
+    P_world = M_cami_to_world @ P_cami
 
-    # TODO: I have no idea why we need to Rotate and then Translate here, meanwhile when getting the camera pos we need to Translate and then Rotate
-    P_world = state_i.cam_to_world.Rt() @ P_cami
-
-    state_j.cam_to_world = Transform3D(R_camj_to_world, T_camj_to_world)
+    state_j.cam_to_world = M_camj_to_world
     state_j.landmarks = P_world
     state_i.landmarks = P_world
 
@@ -73,8 +69,8 @@ class DataSetEnum(Enum):
 
 if __name__ == "__main__":
     
-    steps = 10
-    stride = 2
+    steps = 30
+    stride = 3
     dataset = DataSetEnum.KITTI
 
     K_kitty = np.array(
@@ -93,7 +89,7 @@ if __name__ == "__main__":
         K = K_parking
         path = "data/parking/images/"
 
-    path_loader = PathLoader(path, start=10, stride=stride)
+    path_loader = PathLoader(path, start=90, stride=stride)
     path_iter = iter(path_loader)
 
     states = []
