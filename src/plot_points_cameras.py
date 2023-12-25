@@ -2,7 +2,7 @@ from typing import List
 import numpy as np
 from draw_camera_wireframe import draw_camera_wireframe
 
-def plot_points_cameras(Ps : List[np.ndarray], cam_to_world_transforms: List[np.ndarray]):
+def plot_points_cameras(Ps : List[np.ndarray], cam_to_world_transforms: List[np.ndarray], plot_points: bool = True):
     import plotly.graph_objects as go
     from plotly.subplots import make_subplots
 
@@ -11,18 +11,19 @@ def plot_points_cameras(Ps : List[np.ndarray], cam_to_world_transforms: List[np.
     )
     plotly_fig.update_scenes(aspectmode="data")
     # draw 2D xz scatter plot plus camera position
-    for P in Ps:
-        scatter_2D = go.Scatter(
-            x=P[0, :],
-            y=P[2, :],
-            mode="markers",
-            marker=dict(
-                size=3,
-                colorscale="Viridis",  # choose a colorscale
-                opacity=0.8,
-            ),
-        )
-        plotly_fig.add_trace(scatter_2D, 1, 1)
+    if plot_points:
+        for P in Ps:
+            scatter_2D = go.Scatter(
+                x=P[0, :],
+                y=P[2, :],
+                mode="markers",
+                marker=dict(
+                    size=3,
+                    colorscale="Viridis",  # choose a colorscale
+                    opacity=0.8,
+                ),
+            )
+            plotly_fig.add_trace(scatter_2D, 1, 1)
 
     for i, to_world in enumerate(cam_to_world_transforms):
         centerpoint = to_world @ np.array([0, 0, 0, 1])
@@ -39,20 +40,21 @@ def plot_points_cameras(Ps : List[np.ndarray], cam_to_world_transforms: List[np.
 
 
     # draw 3D scatter plot plus camera frames
-    for P in Ps:
-        scatter_3d = go.Scatter3d(
-            x=P[0, :],
-            y=P[1, :],
-            z=P[2, :],
-            mode="markers",
-            marker=dict(
-                size=3,
-                # color="red",  # set color to an array/list of desired values
-                colorscale="Viridis",  # choose a colorscale
-                opacity=0.8,
-            ),
-        )
-        plotly_fig.add_trace(scatter_3d, 1, 2)
+    if plot_points:
+        for P in Ps:
+            scatter_3d = go.Scatter3d(
+                x=P[0, :],
+                y=P[1, :],
+                z=P[2, :],
+                mode="markers",
+                marker=dict(
+                    size=3,
+                    # color="red",  # set color to an array/list of desired values
+                    colorscale="Viridis",  # choose a colorscale
+                    opacity=0.8,
+                ),
+            )
+            plotly_fig.add_trace(scatter_3d, 1, 2)
 
     colors = [
         "black",
