@@ -11,8 +11,11 @@ from utils.disambiguate_relative_pose import disambiguateRelativePose
 from utils.linear_triangulation import linearTriangulation
 from utils.path_loader import PathLoader
 from plot_points_cameras import plot_points_cameras
-
 from klt import klt
+
+class FeatureDetector(Enum):
+    KLT = 0
+    SIFT = 1
 
 # Note that order is scale rotate translate
 # When composing matrices this means T * R * S
@@ -20,6 +23,7 @@ def pnp(
     state_i : FrameSate,
     state_j : FrameSate,
     K : np.ndarray, # camera intrinsics
+    feature_detector : FeatureDetector = FeatureDetector.KLT
 ) :
     img_i = cv.imread(state_i.img_path, cv.IMREAD_GRAYSCALE)
     img_j = cv.imread(state_j.img_path, cv.IMREAD_GRAYSCALE)
@@ -27,17 +31,23 @@ def pnp(
         kp.pt for kp in state_i.features.keypoints
     ])
 
-    # perform klt
-    pts_j, mask = klt(pts_i, img_i, img_j)
+    if feature_detector == FeatureDetector.KLT:
+        # perform klt
+        pts_j, mask = klt(pts_i, img_i, img_j)
 
-    # select only good keypoints
-    pos_mf_i = pts_i[mask]
-    pos_mf_j = pts_j.squeeze()[mask]
+        # select only good keypoints
+        pos_i = pts_i[mask]
+        pos_j = pts_j.squeeze()[mask]
+    else:
+        mf_i, mf_j = match_features(state_i.features, state_j.features)
 
-    F, mask_f = geom.calc_fundamental_mat(pos_mf_i, pos_mf_j)
+        pos_i = mf_i.get_positions()
+        pos_j = mf_j.get_positions()
+
+    F, mask_f = geom.calc_fundamental_mat(pos_i, pos_j)
     E = geom.calc_essential_mat_from_fundamental_mat(F, K)
-    p_i = np.hstack([pos_mf_i, np.ones((pos_mf_i.shape[0], 1))]).T
-    p_j = np.hstack([pos_mf_j, np.ones((pos_mf_j.shape[0], 1))]).T
+    p_i = np.hstack([pos_i, np.ones((pos_i.shape[0], 1))]).T
+    p_j = np.hstack([pos_j, np.ones((pos_j.shape[0], 1))]).T
 
     p_i = p_i[:, mask_f.ravel() == 1]
     p_j = p_j[:, mask_f.ravel() == 1]
