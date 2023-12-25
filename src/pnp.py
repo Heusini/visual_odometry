@@ -22,7 +22,7 @@ def pnp(
 
     mf_i, mf_j = match_features(state_i.features, state_j.features)
 
-    pos_mf_i = mf_i.get_positions()
+    pos_mf_i = state_i.keypoints
     pos_mf_j = mf_j.get_positions()
 
     F, mask_f = geom.calc_fundamental_mat(pos_mf_i, pos_mf_j)
@@ -71,7 +71,7 @@ if __name__ == "__main__":
     
     steps = 30
     stride = 3
-    dataset = DataSetEnum.KITTI
+    dataset = DataSetEnum.PARKING
 
     K_kitty = np.array(
         [

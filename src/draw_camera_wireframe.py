@@ -15,7 +15,6 @@ def draw_camera_wireframe(to_world : np.ndarray, f, size, cam_name, color="black
     p4_w = M_to_world @ p4_c
 
     center_point = M_to_world @ np.array([0, 0, 0, 1])
-    print(center_point)
 
     # draw camera wireframe
     camera_wireframe = go.Scatter3d(

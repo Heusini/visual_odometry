@@ -6,9 +6,11 @@ from utils.geometry import Transform3D
 from features import detect_features
 
 class FrameSate():
-    t : int
+    t : int # frame index (time)
     img_path : str
     cam_to_world : np.ndarray
+    keypoints : np.ndarray # [N, 2] array of 2D keypoints
+    kp_track_start : np.ndarray # [N] array of keypoint track start frame indices
     features : Features
     landmarks : np.ndarray # $X$ from proj. statement
 
