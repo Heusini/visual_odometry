@@ -1,53 +1,18 @@
 import cv2
 import numpy as np
-from visual_odometry.utils.geometry import calculate_fundamental_matrix, calculate_essential_matrix
-from visual_odometry.utils.image_processing import detect_features, match_features
+from plot_points_cameras import plot_points_cameras
+from pnp import pnp, FeatureDetector
 
+def initialize(state1, state2, K):
+    return pnp(state1, state2, K, feature_detector=FeatureDetector.SIFT)
 
-class Initialization:
-
-    def __init__(self):
-        self.points1 = None
-        self.points2 = None
-
-    def initialize(self, frame1, frame2, K):
-
-        keypoints1, descriptors1 = detect_features(frame1)
-        keypoints2, descriptors2 = detect_features(frame2)
-
-        matches = match_features(descriptors1, descriptors2)
-
-        # # Track these features to the second frame using KLT
-        # keypoints2, _ = cv2.calcOpticalFlowPyrLK(frame1, frame2, keypoints1, None)
-
-        self.points1 = np.float32([keypoints1[m.queryIdx].pt for m in matches])
-        self.points2 = np.float32([keypoints2[m.trainIdx].pt for m in matches])
-
-        print("points1.shape:", self.points1.shape)
-        print("points2.shape:", self.points2.shape)
-        print("points1 dtype: ", self.points1.dtype)
-        print("points2 dtype: ", self.points2.dtype)
-
-        E, mask_e = calculate_essential_matrix(self.points1, self.points2, K)
-
-        inliers = mask_e.ravel() == 1
-
-        _, R, t, _ = cv2.recoverPose(E, self.points1[inliers], self.points2[inliers], K)
-
-        points_homogeneous = cv2.triangulatePoints(np.eye(3, 4), np.hstack((R, t)), self.points1[inliers].T, self.points2[inliers].T)
-        landmarks = cv2.convertPointsFromHomogeneous(points_homogeneous.T)
-        print("landmarks shape: ", landmarks.shape)
-
-        pose = np.hstack((R.T, -R.T @ t))
-
-        return pose, landmarks
 
 if __name__ == "__main__":
 
     import matplotlib.pyplot as plt
     from mpl_toolkits.mplot3d import Axes3D
     import plotly.graph_objects as go
-    from visual_odometry.utils.dataloader import DataLoader, Dataset
+    from utils.dataloader import DataLoader, Dataset
 
     # Initialize DataLoader with a dataset
     loader = DataLoader(Dataset.KITTI)
@@ -56,40 +21,42 @@ if __name__ == "__main__":
     loader.load_data()
     print("Data loaded!")
 
-    K, poses, images = loader.get_data()
+    K, poses, states = loader.get_data()
     print("Data retrieved!")
 
-    frame1_gray = images[0]
-    frame2_gray = images[2]
+    state1 = states[0]
+    state2 = states[2]
 
-    init = Initialization()
+    state1, state2 = initialize(state1, state2, K)
 
-    pose, landmarks = init.initialize(frame1_gray, frame2_gray, K)
-
+    plot_points_cameras(
+        [state1.landmarks, state2.landmarks],
+        [state1.cam_to_world, state2.cam_to_world]
+    )
 
     # dynamic 3D plot
-    fig = go.Figure()
+    # fig = go.Figure()
 
-    fig.add_trace(go.Scatter3d(x=init.points1[:, 0], y=init.points1[:, 1], z=np.zeros(init.points1.shape[0]),
-                               mode='markers', marker=dict(size=3, color='red'), name='Frame 1 keypoints'))
+    # fig.add_trace(go.Scatter3d(x=init.points1[:, 0], y=init.points1[:, 1], z=np.zeros(init.points1.shape[0]),
+    #                            mode='markers', marker=dict(size=3, color='red'), name='Frame 1 keypoints'))
 
-    fig.add_trace(go.Scatter3d(x=init.points2[:, 0], y=init.points2[:, 1], z=np.ones(init.points2.shape[0]),
-                               mode='markers', marker=dict(size=3, color='blue'), name='Frame 2 keypoints'))
+    # fig.add_trace(go.Scatter3d(x=init.points2[:, 0], y=init.points2[:, 1], z=np.ones(init.points2.shape[0]),
+    #                            mode='markers', marker=dict(size=3, color='blue'), name='Frame 2 keypoints'))
 
-    for i in range(len(init.points1)):
-        fig.add_trace(go.Scatter3d(x=[init.points1[i, 0], init.points2[i, 0]], y=[init.points1[i, 1], init.points2[i, 1]], z=[0, 1],
-                                   mode='lines', line=dict(color='green'), showlegend=False))
+    # for i in range(len(init.points1)):
+    #     fig.add_trace(go.Scatter3d(x=[init.points1[i, 0], init.points2[i, 0]], y=[init.points1[i, 1], init.points2[i, 1]], z=[0, 1],
+    #                                mode='lines', line=dict(color='green'), showlegend=False))
 
-    fig.add_trace(go.Scatter3d(x=[pose[0, 3]], y=[pose[1, 3]], z=[pose[2, 3]],
-                               mode='markers', marker=dict(size=5, color='yellow'), name='Camera poses: ground truth'))
+    # fig.add_trace(go.Scatter3d(x=[pose[0, 3]], y=[pose[1, 3]], z=[pose[2, 3]],
+    #                            mode='markers', marker=dict(size=5, color='yellow'), name='Camera poses: ground truth'))
 
-    fig.add_trace(go.Scatter3d(x=landmarks[:, 0, 0], y=landmarks[:, 0, 1], z=landmarks[:, 0, 2],
-                               mode='markers', marker=dict(size=2, color='purple'), name='Landmarks'))
+    # fig.add_trace(go.Scatter3d(x=landmarks[:, 0, 0], y=landmarks[:, 0, 1], z=landmarks[:, 0, 2],
+    #                            mode='markers', marker=dict(size=2, color='purple'), name='Landmarks'))
 
-    fig.update_layout(scene=dict(xaxis_title='X', yaxis_title='Y', zaxis_title='Frame'),
-                      title='Keypoint matches, camera poses and landmarks between two frames')
+    # fig.update_layout(scene=dict(xaxis_title='X', yaxis_title='Y', zaxis_title='Frame'),
+    #                   title='Keypoint matches, camera poses and landmarks between two frames')
 
-    fig.show()
+    # fig.show()
 
 
     # 2D plot
