@@ -12,6 +12,8 @@ from utils.linear_triangulation import linearTriangulation
 from utils.path_loader import PathLoader
 from plot_points_cameras import plot_points_cameras
 
+from klt import klt
+
 # Note that order is scale rotate translate
 # When composing matrices this means T * R * S
 def pnp(
@@ -19,11 +21,18 @@ def pnp(
     state_j : FrameSate,
     K : np.ndarray, # camera intrinsics
 ) :
+    img_i = cv.imread(state_i.img_path, cv.IMREAD_GRAYSCALE)
+    img_j = cv.imread(state_j.img_path, cv.IMREAD_GRAYSCALE)
+    pts_i = np.array([
+        kp.pt for kp in state_i.features.keypoints
+    ])
 
-    mf_i, mf_j = match_features(state_i.features, state_j.features)
+    # perform klt
+    pts_j, mask = klt(pts_i, img_i, img_j)
 
-    pos_mf_i = mf_i.get_positions()
-    pos_mf_j = mf_j.get_positions()
+    # select only good keypoints
+    pos_mf_i = pts_i[mask]
+    pos_mf_j = pts_j.squeeze()[mask]
 
     F, mask_f = geom.calc_fundamental_mat(pos_mf_i, pos_mf_j)
     E = geom.calc_essential_mat_from_fundamental_mat(F, K)

@@ -18,12 +18,20 @@ def klt(
 
     status = np.zeros((pts_j.shape[0], 1), dtype=np.uint8)
 
-    cv.calcOpticalFlowPyrLK(
+    # Parameters for Lucas-Kanade optical flow
+    # maxlevel defines how many times we down scale the original image (at max), especially important to tune
+    # when skipping multiple frames (large frame to frame motion)
+    # Also make the winsize smaller if you increase the maxlevel
+    # citerias are standard, works also without it. Just added it to show that there
+    # are other parameters that we could consider to optimize KLT.
+    lk_params = dict(winSize=(15, 15), maxLevel=10, criteria=(cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_COUNT, 10, 0.03))
+
+    pts_j, status, error = cv.calcOpticalFlowPyrLK(
         img_i,
         img_j,
         pts_i,
-        pts_j,
-        status)
+        None,
+        **lk_params)
     
     mask = status.ravel() == 1
 
