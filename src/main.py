@@ -1,6 +1,7 @@
-from pnp import twoDtwoD
+from twoDtwoD import twoDtwoD
 from utils.dataloader import DataLoader, Dataset
 from initialization import initialize
+from pnp import pnp
 
 # Constants
 init_bandwidth = 4
@@ -43,15 +44,27 @@ def main():
     )
     
     # TODO: Implement Continuous Part: Feel free to change
-    start = 0
-    steps = 30
-    stride = 1
-    for i in range(start, steps-1):
-        twoDtwoD(states[i], states[i+stride], K)
+    steps = 0
+    while steps < len(states) - 3:
+        if steps == 90:
+            break
+        
+        # if only 20 % of the landmarks are visible, call initialize again
+        # currently it is not adding the keypoints and landmarks but rather replacing the current landmarks and kp
+        # this step should be then removed with KLT where we add new keypoints at each frame
+        # (probably a good idea is to store this in a separate variable in framestate, since 
+        # this newly added keypoints can only be used at the point where new landmarks are created
+        # see project statement last page)
+        # TODO: Implement 4.3 (see project statement)
+        if states[steps].landmarks.shape[1] / states[0].landmarks.shape[1] < 0.2:
+            initialize(states[steps], states[steps + 3], K)
+
+        pnp(states[steps], states[steps+1], K)
+        steps += 1
 
     plot_points_cameras(
-        [state.landmarks for state in states[0:steps-1:stride]],
-        [state.cam_to_world for state in states[0:steps-1:stride]],
+        [state.landmarks for state in states[0:steps-1]],
+        [state.cam_to_world for state in states[0:steps-1]],
         plot_points=False
     )
 
