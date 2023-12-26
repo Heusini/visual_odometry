@@ -19,7 +19,7 @@ class FeatureDetector(Enum):
 
 # Note that order is scale rotate translate
 # When composing matrices this means T * R * S
-def pnp(
+def twoDtwoD(
     state_i : FrameSate,
     state_j : FrameSate,
     K : np.ndarray, # camera intrinsics
@@ -118,7 +118,7 @@ if __name__ == "__main__":
         states.append(state)
 
     for i in range(steps-1):
-        pnp(states[i], states[i+1], K)
+        twoDtwoD(states[i], states[i+1], K)
     
     plot_points_cameras(
         [state.landmarks for state in states[0:steps-1]],

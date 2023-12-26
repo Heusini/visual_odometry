@@ -1,4 +1,4 @@
-from pnp import pnp
+from pnp import twoDtwoD
 from utils.dataloader import DataLoader, Dataset
 from initialization import initialize
 
@@ -7,7 +7,7 @@ init_bandwidth = 4
 
 def main():
     # select dataset
-    dataset = Dataset.MALAGA
+    dataset = Dataset.KITTI
     
     # load data
     # if you remove steps then all the images are used
@@ -47,7 +47,7 @@ def main():
     steps = 30
     stride = 1
     for i in range(start, steps-1):
-        pnp(states[i], states[i+stride], K)
+        twoDtwoD(states[i], states[i+stride], K)
 
     plot_points_cameras(
         [state.landmarks for state in states[0:steps-1:stride]],

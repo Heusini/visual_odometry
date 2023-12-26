@@ -119,7 +119,7 @@ class DataLoader:
         
     def _load_malaga_frames(self, path):
         # Load MALAGA specific frames
-        frames_path = path + "images/"
+        frames_path = path + "Images/"
         path_loader = PathLoader(frames_path, start=self.start, stride=self.stride, filter=self._malaga_file_filter)
         path_iter = iter(path_loader)
 
