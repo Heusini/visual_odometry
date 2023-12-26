@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 from plot_points_cameras import plot_points_cameras
-from pnp import twoDtwoD, FeatureDetector
+from twoDtwoD import twoDtwoD, FeatureDetector
 
 def initialize(state1, state2, K):
     return twoDtwoD(state1, state2, K, feature_detector=FeatureDetector.SIFT)
