@@ -72,12 +72,19 @@ def twoDtwoD(
     max_distance = 100
     mask = np.logical_and(P_cami[2, :] > 0, np.abs(np.linalg.norm(P_cami, axis=0)) < max_distance)
     P_cami = P_cami[:, mask]
+    p_i = p_i[:, mask]
+    p_j = p_j[:, mask]
 
     P_world = M_cami_to_world @ P_cami
 
     state_j.cam_to_world = M_camj_to_world
-    state_j.landmarks = P_world
-    state_i.landmarks = P_world
+    state_j.landmarks = P_world[:3, :]
+    state_i.landmarks = P_world[:3, :]
+
+    # updating the keypoints in each state since there have been multiple
+    # filtering steps that reduced the number of initial keypoints
+    state_i.keypoints = p_i[:2, :]
+    state_j.keypoints = p_j[:2, :]
 
     return state_i, state_j
 
