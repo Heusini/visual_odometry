@@ -4,7 +4,7 @@ from enum import Enum
 import cv2
 import os
 from utils.path_loader import PathLoader
-from state import FrameSate
+from state import FrameState
 
 class Dataset(Enum):
     KITTI = 0
@@ -113,7 +113,7 @@ class DataLoader:
         while not stop:
             if i >= self.steps:
                 break
-            self.states += [FrameSate(i, img_path)]
+            self.states += [FrameState(i, img_path)]
             img_path, stop = next(path_iter)
             i += 1
         
@@ -128,7 +128,7 @@ class DataLoader:
         while not stop:
             if i >= self.steps:
                 break
-            self.states += [FrameSate(i, img_path)]
+            self.states += [FrameState(i, img_path)]
             img_path, stop = next(path_iter)
             i += 1
 
@@ -143,7 +143,7 @@ class DataLoader:
         while not stop:
             if i >= self.steps:
                 break
-            self.states += [FrameSate(i, img_path)]
+            self.states += [FrameState(i, img_path)]
             img_path, stop = next(path_iter)
             i += 1
 
@@ -158,7 +158,7 @@ class DataLoader:
         while not stop:
             if i >= self.steps:
                 break
-            self.states += [FrameSate(i, img_path)]
+            self.states += [FrameState(i, img_path)]
             img_path, stop = next(path_iter)
             i += 1
 

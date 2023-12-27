@@ -5,7 +5,7 @@ import cv2 as cv
 from utils.geometry import Transform3D
 from features import detect_features
 
-class FrameSate():
+class FrameState():
     t : int # frame index (time)
     img_path : str
     cam_to_world : np.ndarray

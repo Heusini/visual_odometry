@@ -1,7 +1,7 @@
 import cv2 as cv
 import numpy as np
 from enum import Enum
-from state import FrameSate, Transform3D
+from state import FrameState, Transform3D
 import utils.geometry as geom
 
 from features import detect_features, match_features
@@ -20,8 +20,8 @@ class FeatureDetector(Enum):
 # Note that order is scale rotate translate
 # When composing matrices this means T * R * S
 def twoDtwoD(
-    state_i : FrameSate,
-    state_j : FrameSate,
+    state_i : FrameState,
+    state_j : FrameState,
     K : np.ndarray, # camera intrinsics
     feature_detector : FeatureDetector = FeatureDetector.KLT
 ) :
@@ -121,7 +121,7 @@ if __name__ == "__main__":
     states = []
     for i in range(steps):
         img_path = next(path_iter)
-        state = FrameSate(i, img_path)
+        state = FrameState(i, img_path)
         states.append(state)
 
     for i in range(steps-1):
