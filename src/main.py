@@ -51,7 +51,7 @@ def main():
     )
     
     # TODO: Implement Continuous Part: Feel free to change
-    tracking = Tracking(angle_threshold=np.pi/100, init_frame_indices=init_frame_indices)
+    tracking = Tracking(angle_threshold=2.5*np.pi/180, init_frame_indices=init_frame_indices)
     steps = 0
     while steps < len(states) - 3:
         if steps == 21:
