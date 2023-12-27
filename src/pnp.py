@@ -1,10 +1,10 @@
 import cv2 as cv
 import numpy as np
-from state import FrameSate
+from state import FrameState
 import utils.geometry as geom
 from klt import klt
 
-def pnp(state_i: FrameSate, state_j: FrameSate, K: np.ndarray):
+def pnp(state_i: FrameState, state_j: FrameState, K: np.ndarray):
     matched_landmarks = state_i.landmarks.T
     pts_j, mask_klt = klt(state_i.keypoints.T, cv.imread(state_i.img_path, cv.IMREAD_GRAYSCALE), cv.imread(state_j.img_path, cv.IMREAD_GRAYSCALE))
     matched_keypoints = pts_j.squeeze()[mask_klt]
@@ -15,14 +15,14 @@ def pnp(state_i: FrameSate, state_j: FrameSate, K: np.ndarray):
         imagePoints=matched_keypoints, 
         cameraMatrix=K,
         distCoeffs=np.zeros((4, 1)),
-        iterationsCount=5000,
-        reprojectionError=2.0,
-        confidence=0.99
+        iterationsCount=50000,
+        reprojectionError=1.0,
+        confidence=0.9999
     )
     
     if not success:
         # TODO: Fix WOKO dataset: happened only with WOKO dataset, not sure why though
-        raise Exception("FUCK, mask is None! Something is wrong with the inputs.")
+        raise Exception("There are less than 8 points given in to the solve PNP method.")
 
     rotation_world_camj, jacobian_world_camj = cv.Rodrigues(rotation_vector_world_camj)
     M_world_camj = np.vstack(
