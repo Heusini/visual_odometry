@@ -51,20 +51,25 @@ def main():
     )
     
     # TODO: Implement Continuous Part: Feel free to change
+    DEBUG = False
     tracking = Tracking(angle_threshold=2.5*np.pi/180, init_frame_indices=init_frame_indices)
     steps = 0
     while steps < len(states) - 3:
         if steps == 21:
             break
         
-        # add new keypoints for current frame t
-        tracking.add_new_keypoint_candidates(states[steps].features.keypoints, start_frame_index=states[steps].t)
+        if DEBUG:
+            # add new keypoints for current frame t
+            tracking.add_new_keypoint_candidates(states[steps].features.keypoints, start_frame_index=states[steps].t)
 
-        # track existing keypoints
-        tracking.track_keypoints(img_i=cv.imread(states[steps].img_path), img_j=cv.imread(states[steps+1].img_path))
+            # track existing keypoints
+            tracking.track_keypoints(img_i=cv.imread(states[steps].img_path), img_j=cv.imread(states[steps+1].img_path))
 
-        # check if new landmarks can be created and if so do it
-        tracking.check_for_new_landmarks(frame_states=states, K=K)
+            # check if new landmarks can be created and if so do it
+            tracking.check_for_new_landmarks(frame_states=states, K=K)
+        else:
+            if states[steps].landmarks.shape[1] / states[0].landmarks.shape[1] < 0.2:
+                initialize(states[steps], states[steps + 3], K)
 
         # calculate the camera pose from the information given at frame i and i + 1
         pnp(states[steps], states[steps+1], K)
