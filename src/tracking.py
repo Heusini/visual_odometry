@@ -92,5 +92,60 @@ class Tracking:
 
             # remove track since it is now used as landmarks
             self.tracks[start_frame_index] = [track[mask_angle] for track in self.tracks[start_frame_index]]
-            return frame_states
-        pass
+        return frame_states
+    
+    ## Another way to calculate the angle alpha
+
+    # def check_for_new_landmarks(self, frame_states: FrameState, K: np.ndarray) -> bool:
+    #     for start_frame_index in self.start_frame_indices:
+    #         track = self.tracks[start_frame_index]
+    #         end_frame_index = start_frame_index + len(track) - 1
+
+    #         cam_start_to_world = frame_states[start_frame_index].cam_to_world
+    #         cam_end_to_world = frame_states[end_frame_index].cam_to_world
+
+    #         M_cam_start_cam_end = np.linalg.inv(cam_start_to_world) @ cam_end_to_world
+
+    #         homogenous_start_track = np.vstack([track[0].T, np.ones((1, track[0].shape[0]))])
+    #         homogenous_end_track = np.vstack([track[-1].T, np.ones((1, track[-1].shape[0]))])
+            
+    #         P_cam_start = linearTriangulation(
+    #             homogenous_start_track, 
+    #             homogenous_end_track, 
+    #             K @ np.eye(3, 4),
+    #             K @ M_cam_start_cam_end[0:3, :]
+    #         )[:3, :]
+
+    #         #filter points behind camera and far away
+    #         max_distance = 100
+    #         mask_filter = np.logical_and(P_cam_start[2, :] > 0, np.abs(np.linalg.norm(P_cam_start, axis=0)) < max_distance)
+    #         P_cam_start = P_cam_start[:, mask_filter]
+    #         p_start = homogenous_start_track[:, mask_filter]
+    #         p_end = homogenous_start_track[:, mask_filter]
+
+    #         P_cam_end = (P_cam_start[:3, :].T - M_cam_start_cam_end[:3, 3]).T
+
+    #         dot_products = np.diag(np.dot(P_cam_start.T, P_cam_end))
+    #         start_norms = np.linalg.norm(P_cam_start, axis=0)
+    #         end_norms = np.linalg.norm(P_cam_end, axis=0)
+    #         norm_product = start_norms * end_norms
+    #         cos_angles = dot_products / norm_product
+    #         angles = np.array([np.arccos(cs_angle) for cs_angle in cos_angles])
+    #         mask_angle = np.where(angles.reshape(-1, 1) > self.angle_threshold)[0]
+            
+    #         P_world = cam_start_to_world @ np.vstack([P_cam_start, np.ones((1, P_cam_start.shape[1]))])
+
+    #         ext_landmarks = np.hstack([frame_states[start_frame_index].landmarks, P_world[:3, :]])
+    #         frame_states[start_frame_index].landmarks = ext_landmarks
+    #         frame_states[end_frame_index].landmarks = ext_landmarks
+
+    #         # updating the keypoints in each state since there have been multiple
+    #         # filtering steps that reduced the number of initial keypoints
+    #         ext_keypoints_start = np.hstack([frame_states[start_frame_index].keypoints, p_start[:2, :]])
+    #         ext_keypoints_end = np.hstack([frame_states[start_frame_index].keypoints, p_end[:2, :]])
+    #         frame_states[start_frame_index].keypoints = ext_keypoints_start
+    #         frame_states[end_frame_index].keypoints = ext_keypoints_end
+
+    #         # remove track since it is now used as landmarks
+    #         self.tracks[start_frame_index] = [track[mask_angle] for track in self.tracks[start_frame_index]]
+    #     return frame_states
