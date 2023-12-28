@@ -7,6 +7,7 @@ from klt import klt
 def pnp(state_i: FrameState, state_j: FrameState, K: np.ndarray):
     matched_landmarks = state_i.landmarks.T
     pts_j, mask_klt = klt(state_i.keypoints.T, cv.imread(state_i.img_path, cv.IMREAD_GRAYSCALE), cv.imread(state_j.img_path, cv.IMREAD_GRAYSCALE))
+    mask_klt = np.where(mask_klt.reshape(-1, 1) == True)[0]
     matched_keypoints = pts_j.squeeze()[mask_klt]
     matched_landmarks = matched_landmarks[mask_klt]
 
