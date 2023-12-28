@@ -36,7 +36,7 @@ def pnp(state_i: FrameState, state_j: FrameState, K: np.ndarray):
     state_j.cam_to_world = np.linalg.inv(M_world_camj)
     state_j.keypoints = matched_keypoints[mask_ransac, :].squeeze().T
     state_j.landmarks = matched_landmarks[mask_ransac, :].squeeze().T
-    return state_i, state_j
+    return state_j
 
 
 if __name__ == "__main__":

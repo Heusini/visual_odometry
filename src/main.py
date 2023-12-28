@@ -58,8 +58,10 @@ def main():
         if step == 50:
             break
         
-        # calculate the camera pose from the information given at frame i and i + 1
-        pnp(states[step], states[step+1], K)
+        # computes keypoints, landmarks and pose for step+1 frame, given step frame
+        # Uses KLT to track keypoints, meaning the set of keypoints in step+1 is included in
+        # the set of keypoints in step frame, is however <= in size
+        states[step+1] = pnp(states[step], states[step+1], K)
         
         if DEBUG:
             # add new keypoints for current frame t

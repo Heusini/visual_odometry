@@ -7,6 +7,30 @@ from typing import List
 
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
+# TODO: I propose this archtecture instead. I we can simplify the code a lot with this.
+# instead of using the tracking class, we would then simply maintain a list of tracks in the main loop
+class Track:
+    start_t : int
+    keypoints : np.ndarray # [L, N , 2] where L is the number of frames and N is the number of keypoints
+
+    def __init__(self, start_t: int, keypoints: List[np.ndarray]) -> None:
+        self.start_t = start_t
+        self.keypoints = keypoints
+
+    def track(self, img_i: np.ndarray, img_j: np.ndarray):
+        kp_j, mask = klt(self.keypoints[-1, : , :], img_i, img_j)
+        self.keypoints = self.keypoints[:, mask]
+        self.keypoints = np.vstack([self.keypoints, kp_j])
+
+def compute_new_landmarks(
+    tracks : List[Track],
+    min_length : int,
+) -> np.ndarray:
+    """
+    Searches for new landmarks in the tracks and returns them as a numpy array.
+    """
+    pass
+
 class Tracking:
     def __init__(
         self, 
@@ -16,6 +40,7 @@ class Tracking:
 
         # maps from start frame index to list of keypoints
         self.tracks = {}
+        # list of start frame indices
         self.start_frame_indices = []
         self.angle_threshold = angle_threshold
         self.init_frame_indices = init_frame_indices
@@ -46,6 +71,13 @@ class Tracking:
         self, 
         state: FrameState
     ):
+        """
+        Adds new keypoints to the tracks dictionary if the current frame
+        is one of the start frames. This is done by comparing the current
+        keypoints with the keypoints of the start frame and adding the
+        new keypoints to the tracks dictionary.
+        """
+
         if state.t in self.start_frame_indices:
             return
 
@@ -84,7 +116,7 @@ class Tracking:
     def check_for_new_landmarks(
             self, 
             next_frame: int, 
-            frame_states: FrameState, 
+            frame_states: List[FrameState], 
             K: np.ndarray
         ) -> bool:
 
