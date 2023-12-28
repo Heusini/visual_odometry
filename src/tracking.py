@@ -22,6 +22,9 @@ class Track:
         self.keypoints = self.keypoints[:, mask]
         self.keypoints = np.vstack([self.keypoints, kp_j])
 
+    def size(self):
+        return self.keypoints.shape[1]
+
     def length(self):
         return self.keypoints.shape[0]
 
@@ -36,27 +39,110 @@ class TrackManager:
     active_tracks : Mapping[int, Track] # maps from start frame index to track
     inactive_tracks : Mapping[int, Track] # maps from start frame index to track
     angle_threshold : float
+    same_keypoints_threshold : float
     max_track_length : int
 
-    def __init__(self, angle_threshold: float) -> None:
+    def __init__(
+        self, 
+        angle_threshold: float,
+        same_keypoints_threshold: float,
+        max_track_length: int
+    ) -> None:
+        
         self.active_tracks = {}
         self.angle_threshold = angle_threshold
+        self.same_keypoints_threshold = same_keypoints_threshold
+        self.max_track_length = max_track_length
 
-    def start_new_track(self, state: FrameState):
-        self.active_tracks[state.t] = Track(state.t, [state.keypoints])
+    def start_new_track(
+        self, 
+        state: FrameState
+    ):
+        new_kps = state.features.get_positions()
+        landmarks_kps = state.keypoints
+        dist_x = np.abs(new_kps[:, 0, None] - landmarks_kps[:, 0])
+        dist_y = np.abs(new_kps[:, 1, None] - landmarks_kps[:, 1])
+        mask = np.logical_and(
+            dist_x < self.same_keypoints_threshold, 
+            dist_y < self.same_keypoints_threshold)
+        
+        self.active_tracks[state.t] = Track(state.t, [new_kps[mask, :]])
 
-    def update(self, t : int, img_i: np.ndarray, img_j: np.ndarray):
+    def update(
+        self, 
+        t : int, 
+        img_i: np.ndarray, 
+        img_j: np.ndarray
+    ):
         for track_start_t in self.active_tracks.keys():
-            if t - track_start_t > self.max_track_length:
-                self.inactive_tracks[track_start_t] = self.active_tracks.pop(track_start_t)
+            # remove tracks that are too long or have no keypoints left
+            if (t - track_start_t > self.max_track_length or \
+                self.active_tracks[track_start_t].size() == 0):
+                
+                self.active_tracks.pop(track_start_t)
                 continue
 
             self.active_tracks[track_start_t].track(img_i, img_j)
 
-    def get_new_landmarks(self, t : int, min_track_length: int, frame_states: List[FrameState], K: np.ndarray):
-        for track_start_t in self.active_tracks.keys():
-            if self.active_tracks[track_start_t].length() < min_track_length:
+    def get_new_landmarks(
+        self, 
+        end_t : int, 
+        min_track_length: 
+        int, frame_states: List[FrameState], 
+        K: np.ndarray
+    ):
+        for start_t in self.active_tracks.keys():
+            # skip tracks that are too short
+            if self.active_tracks[start_t].length() < min_track_length:
                 continue
+
+            track = self.active_tracks[start_t]
+
+            cam_start_to_world = frame_states[start_t].cam_to_world
+            cam_end_to_world = frame_states[end_t].cam_to_world
+
+            M_cam_start_cam_end = np.linalg.inv(cam_start_to_world) @ cam_end_to_world
+
+            kp_start = np.vstack([track.get_kp_at_time(start_t).T, np.ones((1, track.size()))])
+            kp_end = np.vstack([track.get_kp_at_time(end_t).T, np.ones((1, track.size()))])
+            
+            P_cam_start = linearTriangulation(
+                kp_start, 
+                kp_end, 
+                K @ np.eye(3, 4),
+                K @ M_cam_start_cam_end[0:3, :]
+            )[:3, :]
+
+            #filter points behind camera and far away
+            max_distance = 100
+            mask_filter = np.logical_and(
+                P_cam_start[2, :] > 0, np.abs(np.linalg.norm(P_cam_start, axis=0)) < max_distance)
+            P_cam_start = P_cam_start[:, mask_filter]
+            kp_end = kp_end[:, mask_filter]
+
+            P_world = cam_start_to_world @ np.vstack([P_cam_start, np.ones((1, P_cam_start.shape[1]))])
+            f_c = P_world[:3, :] - cam_start_to_world[:3, 3].reshape(-1, 1)
+            c = P_world[:3, :] - cam_end_to_world[:3, 3].reshape(-1, 1)
+
+            dot_products = np.diag(np.dot(f_c.T, c))
+            start_norms = np.linalg.norm(f_c, axis=0)
+            end_norms = np.linalg.norm(c, axis=0)
+            norm_product = start_norms * end_norms
+            cos_angles = dot_products / norm_product
+            angles = np.array([np.arccos(cs_angle) for cs_angle in cos_angles])
+            mask_angle = np.where(angles.reshape(-1, 1) > self.angle_threshold)[0]
+            
+            # TODO: Check if there are landmarks that are similar to some of P_world with np.isclose
+            ext_landmarks = np.hstack([frame_states[next_frame].landmarks, P_world[:3, :]])
+            frame_states[next_frame].landmarks = ext_landmarks
+
+            # updating the keypoints in each state since there have been multiple
+            # filtering steps that reduced the number of initial keypoints
+            ext_keypoints_end = np.hstack([frame_states[next_frame].keypoints, kp_end[:2, :]])
+            frame_states[next_frame].keypoints = ext_keypoints_end
+
+            # remove used keypoints in track since it is now used as landmarks
+            self.tracks[start_frame_index] = [track[mask_angle] for track in self.tracks[start_frame_index]]
 
 class Tracking:
     def __init__(
