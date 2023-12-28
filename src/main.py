@@ -72,7 +72,7 @@ def main():
             # TODO: This method has still some bugs. 
             # TODO (To all): Try to comment this method out to see how the number of keypoints and landmarks changes over time
             # and then compare it when it not commented.
-            tracking.check_for_new_landmarks(next_frame=steps+1, frame_states=states, K=K)
+            # tracking.check_for_new_landmarks(next_frame=steps+1, frame_states=states, K=K)
             
             # plotting
             tracking.plot_stats(states[steps])
