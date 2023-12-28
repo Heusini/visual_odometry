@@ -5,6 +5,7 @@ import utils.geometry as geom
 from klt import klt
 
 def pnp(state_i: FrameState, state_j: FrameState, K: np.ndarray):
+    print(f"Number of landmarks in state {state_i.t}: {state_i.landmarks.shape[1]}")
     matched_landmarks = state_i.landmarks.T
     pts_j, mask_klt = klt(state_i.keypoints.T, cv.imread(state_i.img_path, cv.IMREAD_GRAYSCALE), cv.imread(state_j.img_path, cv.IMREAD_GRAYSCALE))
     mask_klt = np.where(mask_klt.reshape(-1, 1) == True)[0]

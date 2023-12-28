@@ -4,9 +4,9 @@ from state import FrameState
 from utils.linear_triangulation import linearTriangulation
 from klt import klt
 from typing import List, Mapping
-
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
+
 # TODO: I propose this archtecture instead. I we can simplify the code a lot with this.
 # instead of using the tracking class, we would then simply maintain a list of tracks in the main loop
 class Track:
@@ -19,8 +19,10 @@ class Track:
 
     def track(self, img_i: np.ndarray, img_j: np.ndarray):
         kp_j, mask = klt(self.keypoints[-1, : , :], img_i, img_j)
-        self.keypoints = self.keypoints[:, mask]
-        self.keypoints = np.vstack([self.keypoints, kp_j])
+        kp_j = np.squeeze(kp_j)
+        kp_j = kp_j[mask, :]
+        self.keypoints = self.keypoints[:, mask, :]
+        self.keypoints = np.concatenate((self.keypoints, np.array([kp_j])), axis=0)
 
     def size(self):
         return self.keypoints.shape[1]
@@ -60,13 +62,20 @@ class TrackManager:
     ):
         new_kps = state.features.get_positions()
         landmarks_kps = state.keypoints
-        dist_x = np.abs(new_kps[:, 0, None] - landmarks_kps[:, 0])
-        dist_y = np.abs(new_kps[:, 1, None] - landmarks_kps[:, 1])
-        mask = np.logical_and(
-            dist_x < self.same_keypoints_threshold, 
-            dist_y < self.same_keypoints_threshold)
+        mask_x = self.threshold_mask(new_kps[:, 0], landmarks_kps[:, 0])
+        mask_y = self.threshold_mask(new_kps[:, 1], landmarks_kps[:, 1])
+
+        mask = np.logical_not(np.logical_and(mask_x, mask_y))
         
-        self.active_tracks[state.t] = Track(state.t, [new_kps[mask, :]])
+        self.active_tracks[state.t] = Track(state.t, new_kps[mask, :])
+
+    def threshold_mask(self, arr1, arr2):
+        arr1 = np.atleast_1d(arr1)
+        arr2 = np.atleast_1d(arr2)
+
+        # Calculate the absolute differences and check if within tolerance
+        diffs = np.abs(arr1[:, None] - arr2)
+        return np.any(diffs <= self.same_keypoints_threshold, axis=1)
 
     def update(
         self, 
@@ -74,12 +83,12 @@ class TrackManager:
         img_i: np.ndarray, 
         img_j: np.ndarray
     ):
-        for track_start_t in self.active_tracks.keys():
+        for track_start_t in list(self.active_tracks.keys()):
             # remove tracks that are too long or have no keypoints left
             if (t - track_start_t > self.max_track_length or \
                 self.active_tracks[track_start_t].size() == 0):
                 
-                self.active_tracks.pop(track_start_t)
+                del self.active_tracks[track_start_t]
                 continue
 
             self.active_tracks[track_start_t].track(img_i, img_j)
@@ -87,11 +96,11 @@ class TrackManager:
     def get_new_landmarks(
         self, 
         time_j : int, 
-        min_track_length: 
-        int, frame_states: List[FrameState], 
+        min_track_length: int, 
+        frame_states: List[FrameState], 
         K: np.ndarray
     ):
-        for time_i in self.active_tracks.keys():
+        for time_i in list(self.active_tracks.keys()):
             # skip tracks that are too short
             if self.active_tracks[time_i].length() < min_track_length:
                 continue
@@ -145,8 +154,11 @@ class TrackManager:
 
             state_j.landmarks = np.hstack([state_j.landmarks, P_world[:3, :]])
             state_j.keypoints = np.hstack([state_j.keypoints, kp_j[:2, :]])
-                
-            self.active_tracks.pop(time_i)
+
+            print(f"prev landmarks: {state_j.landmarks.shape[1] - P_world.shape[1]}")
+            print(f"Found {P_world.shape[1]} new landmarks")
+
+            del self.active_tracks[time_i]
 
 class Tracking:
     def __init__(

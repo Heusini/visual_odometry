@@ -2,7 +2,7 @@ from twoDtwoD import twoDtwoD
 from utils.dataloader import DataLoader, Dataset
 from initialization import initialize
 from pnp import pnp
-from tracking import Tracking
+from tracking import Tracking, TrackManager
 import numpy as np
 import cv2 as cv
 
@@ -15,7 +15,7 @@ def main():
     
     # load data
     # if you remove steps then all the images are used
-    loader = DataLoader(dataset, start=90, stride=1, steps=90)
+    loader = DataLoader(dataset, start=105, stride=3, steps=90)
     print("Loading data...")
 
     loader.load_data()
@@ -53,22 +53,38 @@ def main():
     # TODO: Implement Continuous Part: Feel free to change
     DEBUG = True
     tracking = Tracking(angle_threshold=2.5*np.pi/180, init_frame_indices=init_frame_indices)
-    step = 0
-    while step < len(states) - 3:
-        if step == 50:
+    track_manager = TrackManager(
+        angle_threshold=2.5*np.pi/180,
+        same_keypoints_threshold=0.5,
+        max_track_length=10,
+    )
+    t = 0
+    while t < len(states) - 3:
+        if t == 10:
             break
         
         # computes keypoints, landmarks and pose for step+1 frame, given step frame
         # Uses KLT to track keypoints, meaning the set of keypoints in step+1 is included in
         # the set of keypoints in step frame, is however <= in size
-        states[step+1] = pnp(states[step], states[step+1], K)
-        
+        states[t+1] = pnp(states[t], states[t+1], K)
         if DEBUG:
             # add new keypoints for current frame t
-            tracking.add_keypoint_candidates(states[step].features.keypoints, start_frame_index=states[step].t, current_state=states[step])
+            # tracking.add_keypoint_candidates(states[step].features.keypoints, start_frame_index=states[step].t, current_state=states[step])
+            track_manager.start_new_track(states[t])
+
+            track_manager.update(
+                t,
+                img_i=cv.imread(states[t].img_path), 
+                img_j=cv.imread(states[t+1].img_path))
+            
+            track_manager.get_new_landmarks(
+                t + 1,
+                min_track_length=10,
+                frame_states=states,
+                K = K)
 
             # track existing keypoints
-            tracking.track_keypoints(img_i=cv.imread(states[step].img_path), img_j=cv.imread(states[step+1].img_path))
+            # tracking.track_keypoints(img_i=cv.imread(states[step].img_path), img_j=cv.imread(states[step+1].img_path))
             
             # check if new landmarks can be created and if so do it
             # TODO: This method has still some bugs. 
@@ -77,16 +93,16 @@ def main():
             # tracking.check_for_new_landmarks(next_frame=steps+1, frame_states=states, K=K)
             
             # plotting
-            tracking.plot_stats(states[step])
+            # tracking.plot_stats(states[step])
         else:
-            if states[step].landmarks.shape[1] / states[0].landmarks.shape[1] < 0.2:
-                initialize(states[step], states[step + 3], K)
+            if states[t].landmarks.shape[1] / states[0].landmarks.shape[1] < 0.2:
+                initialize(states[t], states[t + 3], K)
 
-        step += 1
+        t += 1
 
     plot_points_cameras(
-        [state.landmarks for state in states[0:step-1]],
-        [state.cam_to_world for state in states[0:step-1]],
+        [],
+        [state.cam_to_world for state in states[0:t-1]],
         plot_points=False
     )
 
