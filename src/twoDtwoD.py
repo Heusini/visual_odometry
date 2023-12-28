@@ -1,7 +1,7 @@
 import cv2 as cv
 import numpy as np
 from enum import Enum
-from state import FrameState, Transform3D
+from state import FrameState
 import utils.geometry as geom
 
 from features import detect_features, match_features

@@ -3,6 +3,7 @@ import numpy as np
 from state import FrameState
 from utils.linear_triangulation import linearTriangulation
 from klt import klt
+from typing import List
 
 class Tracking:
     def __init__(self, angle_threshold: float, init_frame_indices: [int, int]) -> None:
@@ -12,13 +13,14 @@ class Tracking:
         self.init_frame_indices = init_frame_indices
         pass
     
-    def add_new_keypoint_candidates(self, keypoint_candidates: np.ndarray, start_frame_index: int):
+    def add_keypoint_candidates(self, keypoint_candidates: np.ndarray, start_frame_index: int):
         if start_frame_index not in self.init_frame_indices:
             self.tracks[start_frame_index] = [np.array([kp.pt for kp in keypoint_candidates])]
             self.start_frame_indices.append(start_frame_index)
-        pass
+        else:
+            pass
 
-    def track_keypoints(self, img_i, img_j):
+    def track_keypoints(self, img_i : np.ndarray, img_j : np.ndarray):
         for start_frame_index in self.start_frame_indices:
             if len(self.tracks[start_frame_index][0]) == 0:
                 self.tracks.pop(start_frame_index)
@@ -36,7 +38,7 @@ class Tracking:
             self.tracks[start_frame_index] = [track[mask_indices] for track in self.tracks[start_frame_index]]
             self.tracks[start_frame_index].append(kp_j)
 
-    def check_for_new_landmarks(self, frame_states: FrameState, K: np.ndarray) -> bool:
+    def check_for_new_landmarks(self, frame_states: List[FrameState], K: np.ndarray) -> bool:
         for start_frame_index in self.start_frame_indices:
             track = self.tracks[start_frame_index]
             end_frame_index = start_frame_index + len(track) - 1
@@ -89,4 +91,5 @@ class Tracking:
 
             # remove track since it is now used as landmarks
             self.tracks[start_frame_index] = [track[mask_angle] for track in self.tracks[start_frame_index]]
+
         return frame_states
