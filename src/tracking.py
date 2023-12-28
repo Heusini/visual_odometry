@@ -8,7 +8,13 @@ from typing import List
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 class Tracking:
-    def __init__(self, angle_threshold: float, init_frame_indices: [int, int]) -> None:
+    def __init__(
+        self, 
+        angle_threshold: float, 
+        init_frame_indices: [int, int]
+    ) -> None:
+
+        # maps from start frame index to list of keypoints
         self.tracks = {}
         self.start_frame_indices = []
         self.angle_threshold = angle_threshold
@@ -36,21 +42,28 @@ class Tracking:
         self.annot.set_visible(False)
         pass
     
-    def add_new_keypoint_candidates(self, keypoint_candidates: np.ndarray, start_frame_index: int, current_state: FrameState):
-        if start_frame_index not in self.init_frame_indices:
-            current_keypoints = current_state.keypoints
-            possible_candidates = np.array([kp.pt for kp in keypoint_candidates])
+    def add_keypoint_candidates(
+        self, 
+        state: FrameState
+    ):
+        if state.t in self.start_frame_indices:
+            return
 
-            indices_x = self.ismembertol(possible_candidates[:, 0], current_keypoints[0, :])
-            indices_y = self.ismembertol(possible_candidates[:, 1], current_keypoints[1, :])
-            mask = indices_x | indices_y
+        current_keypoints = state.keypoints
+        possible_candidates = np.array([kp.pt for kp in state.features.keypoints])
 
-            self.tracks[start_frame_index] = [possible_candidates[mask, :]]
-            self.start_frame_indices.append(start_frame_index)
-        else:
-            pass
+        mask_x = self.ismembertol(possible_candidates[:, 0], current_keypoints[0, :])
+        mask_y = self.ismembertol(possible_candidates[:, 1], current_keypoints[1, :])
+        mask = np.logical_or(mask_x, mask_y)
 
-    def track_keypoints(self, img_i : np.ndarray, img_j : np.ndarray):
+        self.tracks[state.t] = [possible_candidates[mask, :]]
+        self.start_frame_indices.append(state.t)
+
+    def track_keypoints(
+        self, 
+        img_i : np.ndarray, 
+        img_j : np.ndarray
+    ):
         for start_frame_index in self.start_frame_indices:
             if len(self.tracks[start_frame_index][0]) == 0:
                 self.tracks.pop(start_frame_index)
@@ -68,7 +81,13 @@ class Tracking:
             self.tracks[start_frame_index] = [track[mask_indices] for track in self.tracks[start_frame_index]]
             self.tracks[start_frame_index].append(kp_j)
 
-    def check_for_new_landmarks(self, next_frame: int, frame_states: FrameState, K: np.ndarray) -> bool:
+    def check_for_new_landmarks(
+            self, 
+            next_frame: int, 
+            frame_states: FrameState, 
+            K: np.ndarray
+        ) -> bool:
+
         for start_frame_index in self.start_frame_indices:
             if next_frame == start_frame_index:
                 continue

@@ -63,7 +63,7 @@ def main():
         
         if DEBUG:
             # add new keypoints for current frame t
-            tracking.add_new_keypoint_candidates(states[step].features.keypoints, start_frame_index=states[step].t, current_state=states[step])
+            tracking.add_keypoint_candidates(states[step].features.keypoints, start_frame_index=states[step].t, current_state=states[step])
 
             # track existing keypoints
             tracking.track_keypoints(img_i=cv.imread(states[step].img_path), img_j=cv.imread(states[step+1].img_path))
