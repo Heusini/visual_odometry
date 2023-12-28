@@ -3,7 +3,7 @@ import numpy as np
 from state import FrameState
 from utils.linear_triangulation import linearTriangulation
 from klt import klt
-from typing import List
+from typing import List, Mapping
 
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
@@ -13,23 +13,50 @@ class Track:
     start_t : int
     keypoints : np.ndarray # [L, N , 2] where L is the number of frames and N is the number of keypoints
 
-    def __init__(self, start_t: int, keypoints: List[np.ndarray]) -> None:
+    def __init__(self, start_t: int, start_keypoints: np.ndarray) -> None:
         self.start_t = start_t
-        self.keypoints = keypoints
+        self.keypoints = np.array([start_keypoints])
 
     def track(self, img_i: np.ndarray, img_j: np.ndarray):
         kp_j, mask = klt(self.keypoints[-1, : , :], img_i, img_j)
         self.keypoints = self.keypoints[:, mask]
         self.keypoints = np.vstack([self.keypoints, kp_j])
 
-def compute_new_landmarks(
-    tracks : List[Track],
-    min_length : int,
-) -> np.ndarray:
-    """
-    Searches for new landmarks in the tracks and returns them as a numpy array.
-    """
-    pass
+    def length(self):
+        return self.keypoints.shape[0]
+
+    def get_kp_at_time(self, t: int):
+        index = t - self.start_t
+        if index < 0 or index >= self.keypoints.shape[0]:
+            raise Exception("Invalid time index")
+        
+        return self.keypoints[index, :, :]
+
+class TrackManager:
+    active_tracks : Mapping[int, Track] # maps from start frame index to track
+    inactive_tracks : Mapping[int, Track] # maps from start frame index to track
+    angle_threshold : float
+    max_track_length : int
+
+    def __init__(self, angle_threshold: float) -> None:
+        self.active_tracks = {}
+        self.angle_threshold = angle_threshold
+
+    def start_new_track(self, state: FrameState):
+        self.active_tracks[state.t] = Track(state.t, [state.keypoints])
+
+    def update(self, t : int, img_i: np.ndarray, img_j: np.ndarray):
+        for track_start_t in self.active_tracks.keys():
+            if t - track_start_t > self.max_track_length:
+                self.inactive_tracks[track_start_t] = self.active_tracks.pop(track_start_t)
+                continue
+
+            self.active_tracks[track_start_t].track(img_i, img_j)
+
+    def get_new_landmarks(self, t : int, min_track_length: int, frame_states: List[FrameState], K: np.ndarray):
+        for track_start_t in self.active_tracks.keys():
+            if self.active_tracks[track_start_t].length() < min_track_length:
+                continue
 
 class Tracking:
     def __init__(
