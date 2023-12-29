@@ -12,7 +12,7 @@ class Dataset(Enum):
     PARKING = 2
     WOKO = 3
 
-dataset_root = "../data/"
+dataset_root = "data/"
 
 paths = {
     Dataset.KITTI: dataset_root + "kitti/",

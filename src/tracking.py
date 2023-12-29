@@ -72,6 +72,8 @@ class TrackManager:
             mask_y = self.threshold_mask(new_kps[:, 1], landmarks_kps[:, 1])
 
             mask = np.logical_not(np.logical_and(mask_x, mask_y))
+
+            print(f"filtering out {np.sum(np.logical_not(mask))} keypoints that are too close to existing landmarks")
             
             self.active_tracks[state.t] = Track(state.t, new_kps[mask, :])
         else:
@@ -137,8 +139,8 @@ class TrackManager:
             max_distance = 100
             mask_distance = np.logical_and(
                 P_cami[2, :] > 0, np.abs(np.linalg.norm(P_cami, axis=0)) < max_distance)
-            P_cami = P_cami[:, mask_distance]
-            kp_j = kp_j[:, mask_distance]
+            # P_cami = P_cami[:, mask_distance]
+            # kp_j = kp_j[:, mask_distance]
 
             P_world = state_i.cam_to_world @ np.vstack([P_cami, np.ones((1, P_cami.shape[1]))])
             
@@ -217,7 +219,7 @@ if __name__ == "__main__":
     
     # load data
     # if you remove steps then all the images are used
-    loader = DataLoader(dataset, start=0, stride=1, steps=100)
+    loader = DataLoader(dataset, start=105, stride=1, steps=100)
     print("Loading data...")
 
     loader.load_data()
@@ -242,17 +244,17 @@ if __name__ == "__main__":
 
     track_manager = TrackManager(
         angle_threshold=2.5*np.pi/180,
-        same_keypoints_threshold=0.5,
+        same_keypoints_threshold=0.9,
         max_track_length=10,
     )
 
-    for t in range(40):
+    for t in range(60):
 
         states[t+1] = pnp(states[t], states[t+1], K)
 
         track_manager.start_new_track(
             states[t],
-            check_keypoints=False)
+            check_keypoints=True)
 
         track_manager.update(
             t,
@@ -264,8 +266,8 @@ if __name__ == "__main__":
             min_track_length=5,
             frame_states=states,
             K=K,
-            compare_to_landmarks=False)
-       
+            compare_to_landmarks=True)
+        
         if t > 10:
             # plot image using cv
             img = cv.imread(states[t].img_path)
@@ -284,9 +286,7 @@ if __name__ == "__main__":
                         (start[i, 0], start[i, 1]),
                         (end[i, 0], end[i, 1]),
                         color=(
-                            255 * track_index / n_tracks,
-                            255 * ( 1 - track_index / n_tracks),
-                            0),
+                            255, 0, 0),
                         thickness=1
                     )
 
@@ -297,10 +297,27 @@ if __name__ == "__main__":
                     img,
                     (int(keypoints[0, i]), int(keypoints[1, i])),
                     radius=3,
-                    color=(0, 255, 0),
+                    color=(0, 0, 255),
+                    thickness=-1
+                )
 
-                    thickness=3
+            # plot existing keypoints using cv2
+            for i in range(states[t+1].keypoints.shape[1]):
+                cv.circle(
+                    img,
+                    (int(states[t+1].keypoints[0, i]), int(states[t+1].keypoints[1, i])),
+                    radius=3,
+                    color=(0, 255, 0),
+                    thickness=-1
                 )
 
             cv.imshow('image',img)
             cv.waitKey()
+
+        
+        states[t+1].landmarks = np.hstack([states[t+1].landmarks, landmarks])
+        print(f"Found {landmarks.shape[1]} new landmarks")
+        print(f"Total number of landmarks: {states[t+1].landmarks.shape[1]}")
+        states[t+1].keypoints = np.hstack([states[t+1].keypoints, keypoints])
+
+       
