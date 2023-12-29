@@ -106,8 +106,12 @@ class TrackManager:
         time_j : int, 
         min_track_length: int, 
         frame_states: List[FrameState], 
-        K: np.ndarray
-    ):
+        K: np.ndarray,
+        compare_to_landmarks: bool = True
+    ) -> (np.ndarray, np.ndarray):
+        landmarks = np.zeros((3, 0))
+        keypoints = np.zeros((2, 0))
+
         for time_i in list(self.active_tracks.keys()):
             # skip tracks that are too short
             if self.active_tracks[time_i].length() < min_track_length:
@@ -156,26 +160,27 @@ class TrackManager:
             kp_j = kp_j[:, angle_mask]
 
             # remove landmarks that are too close to existing landmarks
-            mask_x = self.threshold_mask(P_world[0, :], state_j.landmarks[0, :])
-            mask_y = self.threshold_mask(P_world[1, :], state_j.landmarks[1, :])
-            mask_z = self.threshold_mask(P_world[2, :], state_j.landmarks[2, :])
+            if compare_to_landmarks:
+                mask_x = self.threshold_mask(P_world[0, :], state_j.landmarks[0, :])
+                mask_y = self.threshold_mask(P_world[1, :], state_j.landmarks[1, :])
+                mask_z = self.threshold_mask(P_world[2, :], state_j.landmarks[2, :])
 
-            mask_pos = np.logical_not(np.logical_and(np.logical_and(mask_x, mask_y), mask_z))
+                mask_pos = np.logical_not(np.logical_and(np.logical_and(mask_x, mask_y), mask_z))
 
-            print(f"filtering out {np.sum(np.logical_not(mask_pos))} landmarks that are too close to existing landmarks")
+                print(f"filtering out {np.sum(np.logical_not(mask_pos))} landmarks that are too close to existing landmarks")
 
-            P_world = P_world[:, mask_pos]
-            kp_j = kp_j[:, mask_pos]
+                P_world = P_world[:, mask_pos]
+                kp_j = kp_j[:, mask_pos]
 
-            state_j.landmarks = np.hstack([state_j.landmarks, P_world[:3, :]])
-            state_j.keypoints = np.hstack([state_j.keypoints, kp_j[:2, :]])
-
-            print(state_j.landmarks.shape)
-
-            print(f"prev landmarks: {state_j.landmarks.shape[1] - P_world.shape[1]}")
-            print(f"Added {P_world.shape[1]} new landmarks")
+            # state_j.landmarks = np.hstack([state_j.landmarks, P_world[:3, :]])
+            # state_j.keypoints = np.hstack([state_j.keypoints, kp_j[:2, :]])
 
             del self.active_tracks[time_i]
+
+            landmarks = np.hstack([landmarks, P_world[:3, :]])
+            keypoints = np.hstack([keypoints, kp_j[:2, :]])
+
+        return landmarks, keypoints
 
     def plot_stats(self, current_state: FrameState):
         if len(list(self.tracks.keys())) > 0:
@@ -205,6 +210,7 @@ if __name__ == "__main__":
     from initialization import initialize
     from plot_points_cameras import plot_points_cameras
     from twoDtwoD import FeatureDetector
+    from pnp import pnp
 
     # select dataset
     dataset = Dataset.KITTI
@@ -240,7 +246,9 @@ if __name__ == "__main__":
         max_track_length=10,
     )
 
-    for t in range(20):
+    for t in range(40):
+
+        states[t+1] = pnp(states[t], states[t+1], K)
 
         track_manager.start_new_track(
             states[t],
@@ -251,16 +259,17 @@ if __name__ == "__main__":
             img_i=cv.imread(states[t].img_path), 
             img_j=cv.imread(states[t+1].img_path))
         
-        # track_manager.get_new_landmarks(
-        #     t+1,
-        #     min_track_length=5,
-        #     frame_states=states,
-        #     K=K)
+        landmarks, keypoints = track_manager.get_new_landmarks(
+            t+1,
+            min_track_length=5,
+            frame_states=states,
+            K=K,
+            compare_to_landmarks=False)
        
         if t > 10:
-            # plot image using cv2
+            # plot image using cv
             img = cv.imread(states[t].img_path)
-            cv.imshow('image',img)
+            img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
 
             # plot keypoint tracks using cv2
             n_tracks = len(track_manager.active_tracks)
@@ -269,16 +278,29 @@ if __name__ == "__main__":
                 end = track.keypoints_end.astype(int)
 
                 for i in range(track.size()):
+                    # above line plot code but add to ax[0]
                     cv.line(
-                        img, 
-                        (start[i, 0], start[i, 1]), 
-                        (end[i, 0], end[i, 1]), 
-                        # get rgb color from colormap
+                        img,
+                        (start[i, 0], start[i, 1]),
+                        (end[i, 0], end[i, 1]),
                         color=(
                             255 * track_index / n_tracks,
                             255 * ( 1 - track_index / n_tracks),
                             0),
-                        thickness=1)
+                        thickness=1
+                    )
+
+            # plot keypoints using cv2
+            print(keypoints.shape)
+            for i in range(keypoints.shape[1]):
+                cv.circle(
+                    img,
+                    (int(keypoints[0, i]), int(keypoints[1, i])),
+                    radius=3,
+                    color=(0, 255, 0),
+
+                    thickness=3
+                )
 
             cv.imshow('image',img)
             cv.waitKey()

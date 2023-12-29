@@ -76,11 +76,14 @@ def main():
                 img_i=cv.imread(states[t].img_path), 
                 img_j=cv.imread(states[t+1].img_path))
             
-            track_manager.get_new_landmarks(
+            landmarks, keypoints = track_manager.get_new_landmarks(
                 t + 1,
                 min_track_length=5,
                 frame_states=states,
                 K = K)
+            
+            states[t+1].landmarks = np.hstack([states[t+1].landmarks, landmarks])
+            states[t+1].keypoints = np.hstack([states[t+1].keypoints, keypoints])
 
             # tracking.plot_stats(states[step])
         else:
