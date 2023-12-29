@@ -11,28 +11,34 @@ import matplotlib.cm as cm
 # instead of using the tracking class, we would then simply maintain a list of tracks in the main loop
 class Track:
     start_t : int
-    keypoints : np.ndarray # [L, N , 2] where L is the number of frames and N is the number of keypoints
+    end_t : int
+    keypoints_start : np.ndarray # [N , 2] where N is the number of keypoints
+    keypoints_end : np.ndarray # [N , 2] where N is the number of keypoints
 
     def __init__(self, start_t: int, start_keypoints: np.ndarray) -> None:
         self.start_t = start_t
-        self.keypoints = np.array([start_keypoints])
+        self.keypoints_start = start_keypoints
+        self.keypoints_end = start_keypoints
+        self.end_t = start_t
 
     def track(self, img_i: np.ndarray, img_j: np.ndarray):
-        kp_j, mask = klt(self.keypoints[-1, : , :], img_i, img_j)
-        kp_j = np.squeeze(kp_j)
-        kp_j = kp_j[mask, :]
-        self.keypoints = self.keypoints[:, mask, :]
-        self.keypoints = np.concatenate((self.keypoints, np.array([kp_j])), axis=0)
+        keypoints_next, mask = klt(self.keypoints_end[ : , :], img_i, img_j)
+        print(f"KLT: tracking {np.sum(mask)} keypoints")
+        keypoints_next = np.squeeze(keypoints_next)
+        keypoints_next = keypoints_next[mask, :]
+        self.keypoints_start = self.keypoints_start[mask, :]
+        self.keypoints_end = keypoints_next
+        self.end_t += 1
 
     def size(self):
-        return self.keypoints.shape[1]
+        return self.keypoints_end.shape[0]
 
     def length(self):
-        return self.keypoints.shape[0]
+        return self.end_t - self.start_t
 
     def get_kp_at_time(self, t: int):
         index = t - self.start_t
-        if index < 0 or index >= self.keypoints.shape[0]:
+        if index < 0 or index >= self.length():
             raise Exception("Invalid time index")
         
         return self.keypoints[index, :, :]
@@ -112,9 +118,8 @@ class TrackManager:
 
             M_cami_to_camj = np.linalg.inv(state_i.cam_to_world) @ state_j.cam_to_world
 
-            kp_i = np.vstack([track.get_kp_at_time(time_i).T, np.ones((1, track.size()))])
-            kp_j = np.vstack([track.get_kp_at_time(time_j).T, np.ones((1, track.size()))])
-            
+            kp_i = np.vstack([track.keypoints_start.T, np.ones((1, track.size()))])
+            kp_j = np.vstack([track.keypoints_end.T, np.ones((1, track.size()))])
             P_cami = linearTriangulation(
                 kp_i, 
                 kp_j, 

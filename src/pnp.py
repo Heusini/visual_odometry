@@ -34,11 +34,12 @@ def pnp(state_i: FrameState, state_j: FrameState, K: np.ndarray):
         ]
     )
 
-    print("pnp traced {} points out of {} points".format(matched_keypoints.shape[0], state_i.keypoints.shape[1]))
-
     state_j.cam_to_world = np.linalg.inv(M_world_camj)
     state_j.keypoints = matched_keypoints[mask_ransac, :].squeeze().T
     state_j.landmarks = matched_landmarks[mask_ransac, :].squeeze().T
+
+    print("{} Landmarks in frame {}.".format(state_i.landmarks.shape[1], state_i.t))
+    print("{} Landmarks in frame {}.".format(state_j.keypoints.shape[1], state_j.t))
     return state_j
 
 
