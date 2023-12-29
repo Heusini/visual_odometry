@@ -7,8 +7,6 @@ from typing import List, Mapping
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 
-# TODO: I propose this archtecture instead. I we can simplify the code a lot with this.
-# instead of using the tracking class, we would then simply maintain a list of tracks in the main loop
 class Track:
     start_t : int
     end_t : int
@@ -23,7 +21,7 @@ class Track:
 
     def track(self, img_i: np.ndarray, img_j: np.ndarray):
         keypoints_next, mask = klt(self.keypoints_end[ : , :], img_i, img_j)
-        print(f"KLT: tracking {np.sum(mask)} keypoints")
+        print(f"KLT: tracking {np.sum(mask)} keypoints from track starting at {self.start_t}")
         keypoints_next = np.squeeze(keypoints_next)
         keypoints_next = keypoints_next[mask, :]
         self.keypoints_start = self.keypoints_start[mask, :]
@@ -64,16 +62,20 @@ class TrackManager:
 
     def start_new_track(
         self, 
-        state: FrameState
+        state: FrameState,
+        check_keypoints: bool = True
     ):
         new_kps = state.features.get_positions()
-        landmarks_kps = state.keypoints
-        mask_x = self.threshold_mask(new_kps[:, 0], landmarks_kps[:, 0])
-        mask_y = self.threshold_mask(new_kps[:, 1], landmarks_kps[:, 1])
+        if check_keypoints:
+            landmarks_kps = state.keypoints
+            mask_x = self.threshold_mask(new_kps[:, 0], landmarks_kps[:, 0])
+            mask_y = self.threshold_mask(new_kps[:, 1], landmarks_kps[:, 1])
 
-        mask = np.logical_not(np.logical_and(mask_x, mask_y))
-        
-        self.active_tracks[state.t] = Track(state.t, new_kps[mask, :])
+            mask = np.logical_not(np.logical_and(mask_x, mask_y))
+            
+            self.active_tracks[state.t] = Track(state.t, new_kps[mask, :])
+        else:
+            self.active_tracks[state.t] = Track(state.t, new_kps)
 
     def threshold_mask(self, arr1, arr2):
         arr1 = np.atleast_1d(arr1)
@@ -175,155 +177,6 @@ class TrackManager:
 
             del self.active_tracks[time_i]
 
-class Tracking:
-    def __init__(
-        self, 
-        angle_threshold: float, 
-        init_frame_indices: [int, int]
-    ) -> None:
-
-        # maps from start frame index to list of keypoints
-        self.tracks = {}
-        # list of start frame indices
-        self.start_frame_indices = []
-        self.angle_threshold = angle_threshold
-        self.init_frame_indices = init_frame_indices
-
-        # for plotting
-        self.fig = plt.figure()
-
-        # Plotting keypoints decay
-        self.ax = self.fig.add_subplot(211)
-        self.ax.set_xlabel('Keys')
-        self.ax.set_ylabel('List Lengths')
-        self.ax.set_title('List Lengths in Dictionary Over Time')
-
-        # Plotting number of landmarks over time
-        self.ax1 = self.fig.add_subplot(212)
-        self.ax1.set_xlabel('frame k')
-        self.ax1.set_ylabel('Number of landmarks at k')
-        self.ax1.set_title('Tracking the number of landmarks')
-
-        self.annot = self.ax1.annotate("", xy=(0,0), xytext=(20,20),
-                                      textcoords="offset points",
-                                      bbox=dict(boxstyle="round", fc="w"),
-                                      arrowprops=dict(arrowstyle="->"))
-        self.annot.set_visible(False)
-        pass
-    
-    def add_keypoint_candidates(
-        self, 
-        state: FrameState
-    ):
-        """
-        Adds new keypoints to the tracks dictionary if the current frame
-        is one of the start frames. This is done by comparing the current
-        keypoints with the keypoints of the start frame and adding the
-        new keypoints to the tracks dictionary.
-        """
-
-        if state.t in self.start_frame_indices:
-            return
-
-        current_keypoints = state.keypoints
-        possible_candidates = np.array([kp.pt for kp in state.features.keypoints])
-
-        mask_x = self.ismembertol(possible_candidates[:, 0], current_keypoints[0, :])
-        mask_y = self.ismembertol(possible_candidates[:, 1], current_keypoints[1, :])
-        mask = np.logical_or(mask_x, mask_y)
-
-        self.tracks[state.t] = [possible_candidates[mask, :]]
-        self.start_frame_indices.append(state.t)
-
-    def track_keypoints(
-        self, 
-        img_i : np.ndarray, 
-        img_j : np.ndarray
-    ):
-        for start_frame_index in self.start_frame_indices:
-            if len(self.tracks[start_frame_index][0]) == 0:
-                self.tracks.pop(start_frame_index)
-                self.start_frame_indices.remove(start_frame_index)
-                continue
-
-            kp_j, mask = klt(self.tracks[start_frame_index][-1], img_i, img_j)
-            mask_indices = np.where(mask.reshape(-1, 1) == True)[0]
-            kp_j = kp_j[mask_indices].squeeze()
-            if len(kp_j.shape) == 1:
-                kp_j = kp_j.reshape(1, -1)
-
-            # select only the keypoints based on the good ones of current
-            # kp_j tracking
-            self.tracks[start_frame_index] = [track[mask_indices] for track in self.tracks[start_frame_index]]
-            self.tracks[start_frame_index].append(kp_j)
-
-    def check_for_new_landmarks(
-            self, 
-            next_frame: int, 
-            frame_states: List[FrameState], 
-            K: np.ndarray
-        ) -> bool:
-
-        for start_frame_index in self.start_frame_indices:
-            if next_frame == start_frame_index:
-                continue
-
-            track = self.tracks[start_frame_index]
-
-            cam_start_to_world = frame_states[start_frame_index].cam_to_world
-            cam_end_to_world = frame_states[next_frame].cam_to_world
-
-            M_cam_start_cam_end = np.linalg.inv(cam_start_to_world) @ cam_end_to_world
-
-            homogenous_start_track = np.vstack([track[0].T, np.ones((1, track[0].shape[0]))])
-            homogenous_end_track = np.vstack([track[-1].T, np.ones((1, track[-1].shape[0]))])
-            
-            P_cam_start = linearTriangulation(
-                homogenous_start_track, 
-                homogenous_end_track, 
-                K @ np.eye(3, 4),
-                K @ M_cam_start_cam_end[0:3, :]
-            )[:3, :]
-
-            #filter points behind camera and far away
-            max_distance = 100
-            mask_filter = np.logical_and(P_cam_start[2, :] > 0, np.abs(np.linalg.norm(P_cam_start, axis=0)) < max_distance)
-            P_cam_start = P_cam_start[:, mask_filter]
-            p_end = homogenous_start_track[:, mask_filter]
-
-            P_world = cam_start_to_world @ np.vstack([P_cam_start, np.ones((1, P_cam_start.shape[1]))])
-            f_c = P_world[:3, :] - cam_start_to_world[:3, 3].reshape(-1, 1)
-            c = P_world[:3, :] - cam_end_to_world[:3, 3].reshape(-1, 1)
-
-            dot_products = np.diag(np.dot(f_c.T, c))
-            start_norms = np.linalg.norm(f_c, axis=0)
-            end_norms = np.linalg.norm(c, axis=0)
-            norm_product = start_norms * end_norms
-            cos_angles = dot_products / norm_product
-            angles = np.array([np.arccos(cs_angle) for cs_angle in cos_angles])
-            mask_angle = np.where(angles.reshape(-1, 1) > self.angle_threshold)[0]
-            
-            # TODO: Check if there are landmarks that are similar to some of P_world with np.isclose
-            ext_landmarks = np.hstack([frame_states[next_frame].landmarks, P_world[:3, :]])
-            frame_states[next_frame].landmarks = ext_landmarks
-
-            # updating the keypoints in each state since there have been multiple
-            # filtering steps that reduced the number of initial keypoints
-            ext_keypoints_end = np.hstack([frame_states[next_frame].keypoints, p_end[:2, :]])
-            frame_states[next_frame].keypoints = ext_keypoints_end
-
-            # remove used keypoints in track since it is now used as landmarks
-            self.tracks[start_frame_index] = [track[mask_angle] for track in self.tracks[start_frame_index]]
-        return frame_states
-    
-    def ismembertol(self, arr1, arr2, pixel_distance_threshold=1):
-        arr1 = np.atleast_1d(arr1)
-        arr2 = np.atleast_1d(arr2)
-
-        # Calculate the absolute differences and check if within tolerance
-        diffs = np.abs(arr1[:, None] - arr2)
-        return np.any(diffs <= pixel_distance_threshold, axis=1)
-
     def plot_stats(self, current_state: FrameState):
         if len(list(self.tracks.keys())) > 0:
             # first plot
@@ -345,3 +198,87 @@ class Tracking:
             plt.tight_layout()
             plt.draw()
             plt.pause(0.5)
+
+
+if __name__ == "__main__":
+    from utils.dataloader import DataLoader, Dataset
+    from initialization import initialize
+    from plot_points_cameras import plot_points_cameras
+    from twoDtwoD import FeatureDetector
+
+    # select dataset
+    dataset = Dataset.KITTI
+    
+    # load data
+    # if you remove steps then all the images are used
+    loader = DataLoader(dataset, start=0, stride=1, steps=100)
+    print("Loading data...")
+
+    loader.load_data()
+    print("Data loaded!")
+
+    K, poses, states = loader.get_data()
+    print("Data retrieved!")
+
+    # computes landmarks and pose for the first two frames
+    if dataset == Dataset.KITTI:
+        initialize(states[0], states[3], K)
+        init_states = [states[0], states[3]]
+    elif dataset == Dataset.PARKING:
+        initialize(states[0], states[3], K)
+        init_states = [states[0], states[3]]
+    elif dataset == Dataset.MALAGA:
+        initialize(states[0], states[4], K)
+        init_states = [states[0], states[4]]
+    elif dataset == Dataset.WOKO:
+        initialize(states[0], states[3], K)
+        init_states = [states[0], states[3]]
+
+    track_manager = TrackManager(
+        angle_threshold=2.5*np.pi/180,
+        same_keypoints_threshold=0.5,
+        max_track_length=10,
+    )
+
+    for t in range(20):
+
+        track_manager.start_new_track(
+            states[t],
+            check_keypoints=False)
+
+        track_manager.update(
+            t,
+            img_i=cv.imread(states[t].img_path), 
+            img_j=cv.imread(states[t+1].img_path))
+        
+        # track_manager.get_new_landmarks(
+        #     t+1,
+        #     min_track_length=5,
+        #     frame_states=states,
+        #     K=K)
+       
+        if t > 10:
+            # plot image using cv2
+            img = cv.imread(states[t].img_path)
+            cv.imshow('image',img)
+
+            # plot keypoint tracks using cv2
+            n_tracks = len(track_manager.active_tracks)
+            for track_index, track in enumerate(track_manager.active_tracks.values()):
+                start = track.keypoints_start.astype(int)
+                end = track.keypoints_end.astype(int)
+
+                for i in range(track.size()):
+                    cv.line(
+                        img, 
+                        (start[i, 0], start[i, 1]), 
+                        (end[i, 0], end[i, 1]), 
+                        # get rgb color from colormap
+                        color=(
+                            255 * track_index / n_tracks,
+                            255 * ( 1 - track_index / n_tracks),
+                            0),
+                        thickness=1)
+
+            cv.imshow('image',img)
+            cv.waitKey()
