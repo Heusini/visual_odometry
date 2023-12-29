@@ -52,7 +52,6 @@ def main():
     
     # TODO: Implement Continuous Part: Feel free to change
     DEBUG = True
-    tracking = Tracking(angle_threshold=2.5*np.pi/180, init_frame_indices=init_frame_indices)
     track_manager = TrackManager(
         angle_threshold=2.5*np.pi/180,
         same_keypoints_threshold=0.5,
@@ -83,16 +82,6 @@ def main():
                 frame_states=states,
                 K = K)
 
-            # track existing keypoints
-            # tracking.track_keypoints(img_i=cv.imread(states[step].img_path), img_j=cv.imread(states[step+1].img_path))
-            
-            # check if new landmarks can be created and if so do it
-            # TODO: This method has still some bugs. 
-            # TODO (To all): Try to comment this method out to see how the number of keypoints and landmarks changes over time
-            # and then compare it when it not commented.
-            # tracking.check_for_new_landmarks(next_frame=steps+1, frame_states=states, K=K)
-            
-            # plotting
             # tracking.plot_stats(states[step])
         else:
             if states[t].landmarks.shape[1] / states[0].landmarks.shape[1] < 0.2:
