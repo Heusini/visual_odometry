@@ -5,7 +5,7 @@ import utils.geometry as geom
 from klt import klt
 
 def pnp(state_i: FrameState, state_j: FrameState, K: np.ndarray):
-    print(f"Number of landmarks in state {state_i.t}: {state_i.landmarks.shape[1]}")
+ 
     matched_landmarks = state_i.landmarks.T
     pts_j, mask_klt = klt(state_i.keypoints.T, cv.imread(state_i.img_path, cv.IMREAD_GRAYSCALE), cv.imread(state_j.img_path, cv.IMREAD_GRAYSCALE))
     mask_klt = np.where(mask_klt.reshape(-1, 1) == True)[0]
@@ -33,6 +33,8 @@ def pnp(state_i: FrameState, state_j: FrameState, K: np.ndarray):
             np.array([[0, 0, 0, 1]])
         ]
     )
+
+    print("pnp traced {} points out of {} points".format(matched_keypoints.shape[0], state_i.keypoints.shape[1]))
 
     state_j.cam_to_world = np.linalg.inv(M_world_camj)
     state_j.keypoints = matched_keypoints[mask_ransac, :].squeeze().T

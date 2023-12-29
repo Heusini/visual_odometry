@@ -15,7 +15,7 @@ def main():
     
     # load data
     # if you remove steps then all the images are used
-    loader = DataLoader(dataset, start=105, stride=3, steps=90)
+    loader = DataLoader(dataset, start=105, stride=1, steps=90)
     print("Loading data...")
 
     loader.load_data()
@@ -60,7 +60,7 @@ def main():
     )
     t = 0
     while t < len(states) - 3:
-        if t == 10:
+        if t == 50:
             break
         
         # computes keypoints, landmarks and pose for step+1 frame, given step frame
@@ -79,7 +79,7 @@ def main():
             
             track_manager.get_new_landmarks(
                 t + 1,
-                min_track_length=10,
+                min_track_length=5,
                 frame_states=states,
                 K = K)
 

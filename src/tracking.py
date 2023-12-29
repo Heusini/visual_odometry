@@ -85,7 +85,7 @@ class TrackManager:
     ):
         for track_start_t in list(self.active_tracks.keys()):
             # remove tracks that are too long or have no keypoints left
-            if (t - track_start_t > self.max_track_length or \
+            if (self.active_tracks[track_start_t].length() > self.max_track_length or \
                 self.active_tracks[track_start_t].size() == 0):
                 
                 del self.active_tracks[track_start_t]
@@ -124,39 +124,49 @@ class TrackManager:
 
             #filter points behind camera and far away
             max_distance = 100
-            mask = np.logical_and(
+            mask_distance = np.logical_and(
                 P_cami[2, :] > 0, np.abs(np.linalg.norm(P_cami, axis=0)) < max_distance)
-            P_cami = P_cami[:, mask]
-            kp_j = kp_j[:, mask]
+            P_cami = P_cami[:, mask_distance]
+            kp_j = kp_j[:, mask_distance]
 
             P_world = state_i.cam_to_world @ np.vstack([P_cami, np.ones((1, P_cami.shape[1]))])
-            # f_c = P_world[:3, :] - state_i[:3, 3].reshape(-1, 1)
-            # c = P_world[:3, :] - state_j.cam_to_world[:3, 3].reshape(-1, 1)
-
-            # dot_products = np.diag(np.dot(f_c.T, c))
-            # start_norms = np.linalg.norm(f_c, axis=0)
-            # end_norms = np.linalg.norm(c, axis=0)
-            # norm_product = start_norms * end_norms
-            # cos_angles = dot_products / norm_product
-            # angles = np.array([np.arccos(cs_angle) for cs_angle in cos_angles])
-            # mask_angle = np.where(angles.reshape(-1, 1) > self.angle_threshold)[0]
             
-            # # TODO: Check if there are landmarks that are similar to some of P_world with np.isclose
-            # ext_landmarks = np.hstack([frame_states[next_frame].landmarks, P_world[:3, :]])
-            # frame_states[next_frame].landmarks = ext_landmarks
+            # remove landmarks where the angle between the two cameras is too small
+            T_cami = state_i.cam_to_world[:3, 3].reshape(-1, 1)
+            T_camj = state_j.cam_to_world[:3, 3].reshape(-1, 1)
 
-            # # updating the keypoints in each state since there have been multiple
-            # # filtering steps that reduced the number of initial keypoints
-            # ext_keypoints_end = np.hstack([frame_states[next_frame].keypoints, kp_j[:2, :]])
-            # frame_states[next_frame].keypoints = ext_keypoints_end
+            P_to_cami = P_world[:3, :] - T_cami
+            P_to_camj = P_world[:3, :] - T_camj
+            dot = np.diag(np.dot(P_to_cami.T, P_to_camj))
 
-            # remove used keypoints in track since it is now used as landmarks
+            angles = np.arccos(np.clip(dot, -1.0, 1.0))
+
+            angle_mask = angles > self.angle_threshold
+
+            print(f"filtering out {np.sum(np.logical_not(angle_mask))} landmarks that have too small angle between cameras")
+
+            P_world = P_world[:, angle_mask]
+            kp_j = kp_j[:, angle_mask]
+
+            # remove landmarks that are too close to existing landmarks
+            mask_x = self.threshold_mask(P_world[0, :], state_j.landmarks[0, :])
+            mask_y = self.threshold_mask(P_world[1, :], state_j.landmarks[1, :])
+            mask_z = self.threshold_mask(P_world[2, :], state_j.landmarks[2, :])
+
+            mask_pos = np.logical_not(np.logical_and(np.logical_and(mask_x, mask_y), mask_z))
+
+            print(f"filtering out {np.sum(np.logical_not(mask_pos))} landmarks that are too close to existing landmarks")
+
+            P_world = P_world[:, mask_pos]
+            kp_j = kp_j[:, mask_pos]
 
             state_j.landmarks = np.hstack([state_j.landmarks, P_world[:3, :]])
             state_j.keypoints = np.hstack([state_j.keypoints, kp_j[:2, :]])
 
+            print(state_j.landmarks.shape)
+
             print(f"prev landmarks: {state_j.landmarks.shape[1] - P_world.shape[1]}")
-            print(f"Found {P_world.shape[1]} new landmarks")
+            print(f"Added {P_world.shape[1]} new landmarks")
 
             del self.active_tracks[time_i]
 
