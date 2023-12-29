@@ -12,7 +12,7 @@ class Dataset(Enum):
     PARKING = 2
     WOKO = 3
 
-dataset_root = "data/"
+dataset_root = "../data/"
 
 paths = {
     Dataset.KITTI: dataset_root + "kitti/",
@@ -23,6 +23,12 @@ paths = {
 
 class DataLoader:
 
+    best_params = {
+        "KITTI": {"init_frame_indices": [0, 3]},
+        "PARKING": {"init_frame_indices": [0, 3]},
+        "MALAGA": {"init_frame_indices": [0, 4]},
+        "WOKO": {"init_frame_indices": [0, 3]},
+    }
     def __init__(self, dataset, start=0, stride=1, steps=float('inf')):
         self.dataset = dataset
         self.data_path = paths[dataset]
