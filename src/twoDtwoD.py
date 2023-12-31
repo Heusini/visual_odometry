@@ -93,6 +93,54 @@ def twoDtwoD(
     return state_i, state_j
 
 
+def calculate_relative_pose(points_i, points_j, K):
+    F, mask_f = geom.calc_fundamental_mat(points_i, points_j)
+    E = geom.calc_essential_mat_from_fundamental_mat(F, K)
+    p_i = np.hstack([points_i, np.ones((points_i.shape[0], 1))]).T
+    p_j = np.hstack([points_j, np.ones((points_j.shape[0], 1))]).T
+
+    p_i = p_i[:, mask_f.ravel() == 1]
+    p_j = p_j[:, mask_f.ravel() == 1]
+    R, T = decomposeEssentialMatrix(E)
+    # Rotate -> Translate order
+    R_cami_to_camj, T_cami_to_camj = disambiguateRelativePose(R, T, p_i, p_j, K, K)
+
+    return R_cami_to_camj, T_cami_to_camj
+
+
+def initialize_camera_poses(points_i, points_j, K: np.ndarray):
+    R_cami_to_camj, T_cami_to_camj = calculate_relative_pose(points_i, points_j, K)
+    M_cami_to_camj = np.eye(4)
+    M_cami_to_camj[:3, :] = np.c_[R_cami_to_camj, T_cami_to_camj]
+
+    M_camj_to_cami = np.linalg.inv(M_cami_to_camj)
+    M_cami_to_world = np.eye(3, 4)
+    M_camj_to_world = M_cami_to_world @ M_camj_to_cami
+
+    p_i = np.hstack([points_i, np.ones((points_i.shape[0], 1))]).T
+    p_j = np.hstack([points_j, np.ones((points_j.shape[0], 1))]).T
+    P_cami = linearTriangulation(p_i, p_j, K @ np.eye(3, 4), K @ M_cami_to_camj[0:3, :])
+
+    # filer points behind camera and far away
+    max_distance = 100
+    mask = np.logical_and(
+        P_cami[2, :] > 0, np.abs(np.linalg.norm(P_cami, axis=0)) < max_distance
+    )
+    P_cami = P_cami[:, mask]
+    p_i = p_i[:, mask]
+    p_j = p_j[:, mask]
+
+    P_world = M_cami_to_world @ P_cami
+
+    cam_to_world = M_camj_to_world
+    landmarks = P_world[:3, :]
+
+    # updating the keypoints in each state since there have been multiple
+    # filtering steps that reduced the number of initial keypoints
+
+    return cam_to_world, landmarks, mask
+
+
 class DataSetEnum(Enum):
     KITTI = "kitti"
     PARKING = "parking"
