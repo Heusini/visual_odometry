@@ -1,40 +1,41 @@
+from typing import Any, List, NamedTuple
+
 import cv2 as cv
 import numpy as np
-from typing import NamedTuple, List, Any
-
 from cv2 import calcOpticalFlowPyrLK
+
 
 # this is identical to the openCV KeyPoint class -> do not change
 class Keypoint(NamedTuple):
-    pt : np.ndarray # 2D location of the keypoint
-    size : float # size of the keypoint
-    angle : float # orientation of the keypoint
-    response : float # strength of the keypoint
-    octave : int # octave of the keypoint
-    class_id : int # id of the keypoint
+    pt: np.ndarray  # 2D location of the keypoint
+    size: float  # size of the keypoint
+    angle: float  # orientation of the keypoint
+    response: float  # strength of the keypoint
+    octave: int  # octave of the keypoint
+    class_id: int  # id of the keypoint
+
 
 class Features(NamedTuple):
-    keypoints : List[Keypoint]
-    descriptors : np.ndarray
+    keypoints: List[Keypoint]
+    descriptors: np.ndarray
 
     def get_positions(self) -> np.ndarray:
-        ls = [ k.pt for k in self.keypoints ]
+        ls = [k.pt for k in self.keypoints]
         return np.array(ls)
-    
+
+
 def detect_features(img) -> Features:
     # gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY
     sift = cv.SIFT_create()
     kp, des = sift.detectAndCompute(img, None)
     return Features(kp, des)
 
-def match_features(
-    feature_set_i : Features,
-    feature_set_j : Features,
-    threshold=0.6) -> (Features, Features):
 
+def match_features(
+    feature_set_i: Features, feature_set_j: Features, threshold=0.6
+) -> (Features, Features):
     bf = cv.BFMatcher()
-    matches = bf.knnMatch(
-        feature_set_i.descriptors, feature_set_j.descriptors, k=2)
+    matches = bf.knnMatch(feature_set_i.descriptors, feature_set_j.descriptors, k=2)
 
     matches_filtered = []
     for m, n in matches:
@@ -53,14 +54,16 @@ def match_features(
     matching_features_i = Features(matching_kps_i, matching_des_i)
     matching_features_j = Features(matching_kps_j, matching_des_j)
 
-    return matching_features_i, matching_features_j
+    return matching_features_i, matching_features_j, matches_filtered
+
 
 if __name__ == "__main__":
     import time
 
     import matplotlib.pyplot as plt
-    from helpers import load_images
     from matplotlib.patches import ConnectionPatch
+
+    from helpers import load_images
 
     show_lines = False
     show_sift_features = True
@@ -79,7 +82,9 @@ if __name__ == "__main__":
     features_j = detect_features(img_j)
     t3 = time.time()
 
-    matching_features_i, matching_features_j = match_features(features_i, features_j, threshold=0.99)
+    matching_features_i, matching_features_j = match_features(
+        features_i, features_j, threshold=0.99
+    )
     print(f"Number of matching features: {len(matching_features_i.keypoints)}")
 
     t4 = time.time()

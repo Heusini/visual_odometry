@@ -1,10 +1,13 @@
-import numpy as np
-from pathlib import Path
-from enum import Enum
-import cv2
 import os
-from utils.path_loader import PathLoader
+from enum import Enum
+from pathlib import Path
+
+import cv2
+import numpy as np
+
 from state import FrameState
+from utils.path_loader import PathLoader
+
 
 class Dataset(Enum):
     KITTI = 0
@@ -12,24 +15,26 @@ class Dataset(Enum):
     PARKING = 2
     WOKO = 3
 
+
 dataset_root = "data/"
 
 paths = {
     Dataset.KITTI: dataset_root + "kitti/",
     Dataset.MALAGA: dataset_root + "malaga-urban-dataset-extract-07/",
     Dataset.PARKING: dataset_root + "parking/",
-    Dataset.WOKO: dataset_root + "woko_dataset/"
+    Dataset.WOKO: dataset_root + "woko_dataset/",
 }
 
-class DataLoader:
 
+class DataLoader:
     best_params = {
         "KITTI": {"init_frame_indices": [0, 3]},
         "PARKING": {"init_frame_indices": [0, 3]},
         "MALAGA": {"init_frame_indices": [0, 4]},
         "WOKO": {"init_frame_indices": [0, 3]},
     }
-    def __init__(self, dataset, start=0, stride=1, steps=float('inf')):
+
+    def __init__(self, dataset, start=0, stride=1, steps=float("inf")):
         self.dataset = dataset
         self.data_path = paths[dataset]
         self.k = None
@@ -51,19 +56,19 @@ class DataLoader:
         self._load_params()
 
     def _load_k(self):
-        method = f'_load_{self.dataset.name.lower()}_k'
+        method = f"_load_{self.dataset.name.lower()}_k"
         getattr(self, method)()
 
     def _load_frames(self):
-        method = f'_load_{self.dataset.name.lower()}_frames'
+        method = f"_load_{self.dataset.name.lower()}_frames"
         getattr(self, method)(self.data_path)
 
     def _load_poses(self):
-        method = f'_load_{self.dataset.name.lower()}_poses'
+        method = f"_load_{self.dataset.name.lower()}_poses"
         getattr(self, method)(self.data_path)
 
     def _load_params(self):
-        method = f'_load_{self.dataset.name.lower()}_poses'
+        method = f"_load_{self.dataset.name.lower()}_poses"
         getattr(self, method)(self.data_path)
 
     def _load_kitti_params(self):
@@ -84,29 +89,33 @@ class DataLoader:
 
     def _load_kitti_k(self):
         # Load KITTI specific 'k' data
-        self.k = np.array([[7.188560000000e+02, 0, 6.071928000000e+02],
-                           [0, 7.188560000000e+02, 1.852157000000e+02],
-                           [0, 0, 1]])
+        self.k = np.array(
+            [
+                [7.188560000000e02, 0, 6.071928000000e02],
+                [0, 7.188560000000e02, 1.852157000000e02],
+                [0, 0, 1],
+            ]
+        )
 
     def _load_malaga_k(self):
         # Load MALAGA specific 'k' data
-        self.k = np.array([[621.18428, 0, 404.0076],
-                           [0, 621.18428, 309.05989],
-                           [0, 0, 1]])
+        self.k = np.array(
+            [[621.18428, 0, 404.0076], [0, 621.18428, 309.05989], [0, 0, 1]]
+        )
 
     def _load_parking_k(self):
         # Load PARKING specific 'k' data
-        self.k = np.array([[331.37, 0, 320],
-                           [0, 369.568, 240],
-                           [0, 0, 1]])
-    
+        self.k = np.array([[331.37, 0, 320], [0, 369.568, 240], [0, 0, 1]])
+
     def _load_woko_k(self):
         # Load WOKO specific 'k' data
-        self.k = np.array([
-            [1.80347578e+04, 0.00000000e+00, 3.64691295e+02],
-            [0.00000000e+00, 4.32128296e+02, 2.06617693e+02],
-            [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]
-        ])
+        self.k = np.array(
+            [
+                [1.80347578e04, 0.00000000e00, 3.64691295e02],
+                [0.00000000e00, 4.32128296e02, 2.06617693e02],
+                [0.00000000e00, 0.00000000e00, 1.00000000e00],
+            ]
+        )
 
     def _load_kitti_frames(self, path):
         # Load KITTI specific frames
@@ -122,11 +131,16 @@ class DataLoader:
             self.states += [FrameState(i, img_path)]
             img_path, stop = next(path_iter)
             i += 1
-        
+
     def _load_malaga_frames(self, path):
         # Load MALAGA specific frames
         frames_path = path + "Images/"
-        path_loader = PathLoader(frames_path, start=self.start, stride=self.stride, filter=self._malaga_file_filter)
+        path_loader = PathLoader(
+            frames_path,
+            start=self.start,
+            stride=self.stride,
+            filter=self._malaga_file_filter,
+        )
         path_iter = iter(path_loader)
 
         img_path, stop = next(path_iter)
@@ -172,28 +186,40 @@ class DataLoader:
         # Load KITTI specific poses
         poses_path = path + "poses/05.txt"
         poses = np.loadtxt(poses_path)
-        self.poses = np.array([np.append(np.reshape(pose, (3, 4)), np.array([[0, 0, 0, 1]]), axis=0) for pose in poses], dtype=np.float32)
-
+        self.poses = np.array(
+            [
+                np.append(np.reshape(pose, (3, 4)), np.array([[0, 0, 0, 1]]), axis=0)
+                for pose in poses
+            ],
+            dtype=np.float32,
+        )
 
     def _load_malaga_poses(self, path):
         return None
-    
+
     def _load_parking_poses(self, path):
         # Load PARKING specific poses
         poses_path = path + "poses.txt"
         poses = np.loadtxt(poses_path)
-        self.poses = np.array([np.append(np.reshape(pose, (3, 4)), np.array([[0, 0, 0, 1]]), axis=0) for pose in poses], dtype=np.float32)
+        self.poses = np.array(
+            [
+                np.append(np.reshape(pose, (3, 4)), np.array([[0, 0, 0, 1]]), axis=0)
+                for pose in poses
+            ],
+            dtype=np.float32,
+        )
 
     def _load_woko_poses(self, path):
         return None
 
     def _malaga_file_filter(self, filename):
-        return '_left.jpg' in filename
-    
+        return "_left.jpg" in filename
+
     def get_data(self):
         return self.k, self.poses, self.states
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     import matplotlib.pyplot as plt
 
     # Initialize DataLoader with a dataset
@@ -217,5 +243,5 @@ if __name__ == '__main__':
     print(f"Number of frames: {num_frames}")
 
     # Display the first image
-    plt.imshow(images[0], cmap='gray')
+    plt.imshow(images[0], cmap="gray")
     plt.show()
