@@ -105,21 +105,22 @@ if __name__ == "__main__":
 
     start_frame = 3
     feature_detector = FeatureDetector.KLT
+    features_detector_init = FeatureDetector.SIFT
     # computes landmarks and pose for the first two frames
     states[0].features = detect_features(
         cv.imread(states[0].img_path, cv.IMREAD_GRAYSCALE)
     )
     if dataset == Dataset.KITTI:
-        initialize(states[0], states[start_frame], K, FeatureDetector.SIFT)
+        initialize(states[0], states[start_frame], K, features_detector_init)
         init_states = [states[0], states[3]]
     elif dataset == Dataset.PARKING:
-        initialize(states[0], states[start_frame], K, FeatureDetector.SIFT)
+        initialize(states[0], states[start_frame], K, features_detector_init)
         init_states = [states[0], states[3]]
     elif dataset == Dataset.MALAGA:
-        initialize(states[0], states[start_frame], K, FeatureDetector.SIFT)
+        initialize(states[0], states[start_frame], K, features_detector_init)
         init_states = [states[0], states[4]]
     elif dataset == Dataset.WOKO:
-        initialize(states[0], states[start_frame], K, FeatureDetector.SIFT)
+        initialize(states[0], states[start_frame], K, features_detector_init)
         init_states = [states[0], states[3]]
 
     steps = 0
@@ -143,6 +144,9 @@ if __name__ == "__main__":
         mask_klt = np.where(mask.reshape(-1, 1) == True)[0]
         matched_keypoints = pts.squeeze()[mask_klt]
         matched_landmarks = matched_landmarks[mask_klt]
+
+        print(f"{matched_keypoints.shape} keypoints lol matched")
+        print(f"{matched_landmarks.shape} landmarks lol matched")
 
         camera_pose, mask_ransac = pnp(matched_keypoints, matched_landmarks, K)
 
