@@ -16,7 +16,7 @@ class Keypoint(NamedTuple):
 
 
 class Features(NamedTuple):
-    keypoints: List[Keypoint]
+    keypoints: np.ndarray
     descriptors: np.ndarray
 
     def get_positions(self) -> np.ndarray:
@@ -42,6 +42,9 @@ def match_features(
         if m.distance < threshold * n.distance:
             matches_filtered.append(m)
 
+    print(len(matches_filtered))
+    mask = np.asarray([m.distance < threshold * n.distance for m, n in matches])
+
     matching_kps_i = [feature_set_i.keypoints[m.queryIdx] for m in matches_filtered]
     matching_kps_j = [feature_set_j.keypoints[m.trainIdx] for m in matches_filtered]
 
@@ -50,11 +53,13 @@ def match_features(
 
     matching_des_i = np.array(matching_des_i)
     matching_des_j = np.array(matching_des_j)
+    matching_kps_i = np.array(matching_kps_i)
+    matching_kps_j = np.array(matching_kps_j)
 
     matching_features_i = Features(matching_kps_i, matching_des_i)
     matching_features_j = Features(matching_kps_j, matching_des_j)
 
-    return matching_features_i, matching_features_j, matches_filtered
+    return matching_features_i, matching_features_j, mask
 
 
 if __name__ == "__main__":
