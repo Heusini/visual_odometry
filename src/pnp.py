@@ -110,16 +110,16 @@ if __name__ == "__main__":
         cv.imread(states[0].img_path, cv.IMREAD_GRAYSCALE)
     )
     if dataset == Dataset.KITTI:
-        initialize(states[0], states[start_frame], K, feature_detector)
+        initialize(states[0], states[start_frame], K, FeatureDetector.SIFT)
         init_states = [states[0], states[3]]
     elif dataset == Dataset.PARKING:
-        initialize(states[0], states[start_frame], K, feature_detector)
+        initialize(states[0], states[start_frame], K, FeatureDetector.SIFT)
         init_states = [states[0], states[3]]
     elif dataset == Dataset.MALAGA:
-        initialize(states[0], states[start_frame], K, feature_detector)
+        initialize(states[0], states[start_frame], K, FeatureDetector.SIFT)
         init_states = [states[0], states[4]]
     elif dataset == Dataset.WOKO:
-        initialize(states[0], states[start_frame], K, feature_detector)
+        initialize(states[0], states[start_frame], K, FeatureDetector.SIFT)
         init_states = [states[0], states[3]]
 
     steps = 0
