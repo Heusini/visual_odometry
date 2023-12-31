@@ -1,35 +1,36 @@
+from enum import Enum
+
 import cv2 as cv
 import numpy as np
-from enum import Enum
-from state import FrameState
+
 import utils.geometry as geom
-
 from features import detect_features, match_features
-
+from klt import klt
+from plot_points_cameras import plot_points_cameras
+from state import FrameState
 from utils.decompose_essential_matrix import decomposeEssentialMatrix
 from utils.disambiguate_relative_pose import disambiguateRelativePose
 from utils.linear_triangulation import linearTriangulation
 from utils.path_loader import PathLoader
-from plot_points_cameras import plot_points_cameras
-from klt import klt
+
 
 class FeatureDetector(Enum):
     KLT = 0
     SIFT = 1
 
+
 # Note that order is scale rotate translate
 # When composing matrices this means T * R * S
 def twoDtwoD(
-    state_i : FrameState,
-    state_j : FrameState,
-    K : np.ndarray, # camera intrinsics
-    feature_detector : FeatureDetector = FeatureDetector.KLT
-) :
+    state_i: FrameState,
+    state_j: FrameState,
+    K: np.ndarray,  # camera intrinsics
+    feature_detector: FeatureDetector = FeatureDetector.KLT,
+):
     img_i = cv.imread(state_i.img_path, cv.IMREAD_GRAYSCALE)
     img_j = cv.imread(state_j.img_path, cv.IMREAD_GRAYSCALE)
-    pts_i = np.array([
-        kp.pt for kp in state_i.features.keypoints
-    ])
+    state_i.features = detect_features(img_i)
+    pts_i = np.array([kp.pt for kp in state_i.features.keypoints])
 
     if feature_detector == FeatureDetector.KLT:
         # perform klt
@@ -39,10 +40,15 @@ def twoDtwoD(
         pos_i = pts_i[mask]
         pos_j = pts_j.squeeze()[mask]
     else:
-        mf_i, mf_j = match_features(state_i.features, state_j.features)
+        state_j.features = detect_features(img_j)
+        mf_i, mf_j, _ = match_features(state_i.features, state_j.features)
+        state_i.features = mf_i
+        state_j.features = mf_j
 
         pos_i = mf_i.get_positions()
         pos_j = mf_j.get_positions()
+        print(f"{len(pos_i)} keypoints matched")
+        print(f"{len(pos_j)} keypoints matched")
 
     F, mask_f = geom.calc_fundamental_mat(pos_i, pos_j)
     E = geom.calc_essential_mat_from_fundamental_mat(F, K)
@@ -62,15 +68,13 @@ def twoDtwoD(
     M_cami_to_world = state_i.cam_to_world
     M_camj_to_world = M_cami_to_world @ M_camj_to_cami
 
-    P_cami = linearTriangulation(
-        p_i, 
-        p_j, 
-        K @ np.eye(3, 4),
-        K @ M_cami_to_camj[0:3, :])
+    P_cami = linearTriangulation(p_i, p_j, K @ np.eye(3, 4), K @ M_cami_to_camj[0:3, :])
 
-    #filer points behind camera and far away
+    # filer points behind camera and far away
     max_distance = 100
-    mask = np.logical_and(P_cami[2, :] > 0, np.abs(np.linalg.norm(P_cami, axis=0)) < max_distance)
+    mask = np.logical_and(
+        P_cami[2, :] > 0, np.abs(np.linalg.norm(P_cami, axis=0)) < max_distance
+    )
     P_cami = P_cami[:, mask]
     p_i = p_i[:, mask]
     p_j = p_j[:, mask]
@@ -88,13 +92,14 @@ def twoDtwoD(
 
     return state_i, state_j
 
+
 class DataSetEnum(Enum):
     KITTI = "kitti"
     PARKING = "parking"
     MALAGA = "malaga"
 
+
 if __name__ == "__main__":
-    
     steps = 30
     stride = 3
     dataset = DataSetEnum.KITTI
@@ -124,10 +129,10 @@ if __name__ == "__main__":
         state = FrameState(i, img_path)
         states.append(state)
 
-    for i in range(steps-1):
-        twoDtwoD(states[i], states[i+1], K)
-    
+    for i in range(steps - 1):
+        twoDtwoD(states[i], states[i + 1], K)
+
     plot_points_cameras(
-        [state.landmarks for state in states[0:steps-1]],
-        [state.cam_to_world for state in states]
+        [state.landmarks for state in states[0 : steps - 1]],
+        [state.cam_to_world for state in states],
     )
