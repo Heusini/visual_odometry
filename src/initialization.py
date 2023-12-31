@@ -1,17 +1,19 @@
 import cv2
 import numpy as np
-from plot_points_cameras import plot_points_cameras
-from twoDtwoD import twoDtwoD, FeatureDetector
 
-def initialize(state1, state2, K):
-    return twoDtwoD(state1, state2, K, feature_detector=FeatureDetector.SIFT)
+from plot_points_cameras import plot_points_cameras
+from twoDtwoD import FeatureDetector, twoDtwoD
+
+
+def initialize(state1, state2, K, feature_detector=FeatureDetector.KLT):
+    return twoDtwoD(state1, state2, K, feature_detector)
 
 
 if __name__ == "__main__":
-
     import matplotlib.pyplot as plt
-    from mpl_toolkits.mplot3d import Axes3D
     import plotly.graph_objects as go
+    from mpl_toolkits.mplot3d import Axes3D
+
     from utils.dataloader import DataLoader, Dataset
 
     # Initialize DataLoader with a dataset
@@ -30,8 +32,7 @@ if __name__ == "__main__":
     state1, state2 = initialize(state1, state2, K)
 
     plot_points_cameras(
-        [state1.landmarks, state2.landmarks],
-        [state1.cam_to_world, state2.cam_to_world]
+        [state1.landmarks, state2.landmarks], [state1.cam_to_world, state2.cam_to_world]
     )
 
     # dynamic 3D plot
@@ -57,7 +58,6 @@ if __name__ == "__main__":
     #                   title='Keypoint matches, camera poses and landmarks between two frames')
 
     # fig.show()
-
 
     # 2D plot
     # fig, ax = plt.subplots(1, 2, figsize=(15, 10))
