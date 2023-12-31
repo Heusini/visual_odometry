@@ -33,7 +33,7 @@ def detect_features(img) -> Features:
 
 def match_features(
     feature_set_i: Features, feature_set_j: Features, threshold=0.6
-) -> (Features, Features):
+) -> (Features, Features, np.ndarray):
     bf = cv.BFMatcher()
     matches = bf.knnMatch(feature_set_i.descriptors, feature_set_j.descriptors, k=2)
 
