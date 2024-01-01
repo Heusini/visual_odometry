@@ -5,6 +5,7 @@ import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 import numpy as np
 
+from features import detect_features
 from klt import klt
 from state import FrameState
 from utils.linear_triangulation import linearTriangulation
@@ -67,6 +68,7 @@ class TrackManager:
         self.max_track_length = max_track_length
 
     def start_new_track(self, state: FrameState, check_keypoints: bool = True):
+        state.features = detect_features(cv.imread(state.img_path, cv.IMREAD_GRAYSCALE))
         new_kps = state.features.get_positions()
         if check_keypoints:
             landmarks_kps = state.keypoints
