@@ -1,5 +1,7 @@
 import numpy as np
+
 from utils.utils import cross2Matrix
+
 
 def linearTriangulation(p1, p2, M1, M2):
     """Linear Triangulation.
