@@ -121,6 +121,14 @@ def initialize_camera_poses(points_i, points_j, K: np.ndarray):
     p_j = np.hstack([points_j, np.ones((points_j.shape[0], 1))]).T
     P_cami = linearTriangulation(p_i, p_j, K @ np.eye(3, 4), K @ M_cami_to_camj[0:3, :])
 
+    #######
+    # opencv triangulatePoints
+    # P_cami = cv.triangulatePoints(
+    #     K @ np.eye(3, 4), K @ M_cami_to_camj[0:3, :], p_i[:2, :], p_j[:2, :]
+    # )
+    # print(P_cami.shape)
+    #######
+
     # filer points behind camera and far away
     max_distance = 100
     mask = np.logical_and(
