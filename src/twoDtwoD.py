@@ -108,13 +108,13 @@ def calculate_relative_pose(points_i, points_j, K):
     return R_cami_to_camj, T_cami_to_camj
 
 
-def initialize_camera_poses(points_i, points_j, K: np.ndarray):
+def initialize_camera_poses(points_i, points_j, K: np.ndarray, ref: np.ndarray = np.eye(4)):
     R_cami_to_camj, T_cami_to_camj = calculate_relative_pose(points_i, points_j, K)
     M_cami_to_camj = np.eye(4)
     M_cami_to_camj[:3, :] = np.c_[R_cami_to_camj, T_cami_to_camj]
 
     M_camj_to_cami = np.linalg.inv(M_cami_to_camj)
-    M_cami_to_world = np.eye(3, 4)
+    M_cami_to_world = ref
     M_camj_to_world = M_cami_to_world @ M_camj_to_cami
 
     p_i = np.hstack([points_i, np.ones((points_i.shape[0], 1))]).T
@@ -129,11 +129,8 @@ def initialize_camera_poses(points_i, points_j, K: np.ndarray):
     # print(P_cami.shape)
     #######
 
-    # filer points behind camera and far away
-    max_distance = 100
-    mask = np.logical_and(
-        P_cami[2, :] > 0, np.abs(np.linalg.norm(P_cami, axis=0)) < max_distance
-    )
+    # filer points behind camera
+    mask = P_cami[2, :] > 0
     P_cami = P_cami[:, mask]
     p_i = p_i[:, mask]
     p_j = p_j[:, mask]
