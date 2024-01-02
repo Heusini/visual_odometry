@@ -4,7 +4,8 @@ import cv2 as cv
 def klt(
     pts_i : np.ndarray,
     img_i : np.ndarray,
-    img_j : np.ndarray) -> (np.ndarray, np.ndarray):
+    img_j : np.ndarray,
+    lk_params : dict = dict(winSize=(15, 15), maxLevel=10, criteria=(cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_COUNT, 10, 0.03))) -> (np.ndarray, np.ndarray):
 
     # convert images to greyscale if necessary
     if len(img_i.shape) == 3:
@@ -24,7 +25,6 @@ def klt(
     # Also make the winsize smaller if you increase the maxlevel
     # citerias are standard, works also without it. Just added it to show that there
     # are other parameters that we could consider to optimize KLT.
-    lk_params = dict(winSize=(15, 15), maxLevel=10, criteria=(cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_COUNT, 10, 0.03))
 
     pts_j, status, error = cv.calcOpticalFlowPyrLK(
         img_i,
