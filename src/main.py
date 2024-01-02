@@ -2,7 +2,7 @@ from twoDtwoD import twoDtwoD
 from utils.dataloader import DataLoader, Dataset
 from initialization import initialize
 from pnp import pnp
-from tracking import Tracking, TrackManager
+from tracking import TrackManager
 import numpy as np
 import cv2 as cv
 

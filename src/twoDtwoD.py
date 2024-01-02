@@ -13,7 +13,6 @@ from utils.disambiguate_relative_pose import disambiguateRelativePose
 from utils.linear_triangulation import linearTriangulation
 from utils.path_loader import PathLoader
 
-
 class FeatureDetector(Enum):
     KLT = 0
     SIFT = 1
@@ -154,37 +153,22 @@ class DataSetEnum(Enum):
     PARKING = "parking"
     MALAGA = "malaga"
 
-
+from utils.dataloader import DataLoader, Dataset
 if __name__ == "__main__":
-    steps = 30
-    stride = 3
-    dataset = DataSetEnum.KITTI
+      # select dataset
+    dataset = Dataset.KITTI
+    
+    steps = 20
+    stride = 4
+    # load data
+    # if you remove steps then all the images are used
+    loader = DataLoader(dataset, start=105, stride=stride, steps=steps)
+    print("Loading data...")
 
-    K_kitty = np.array(
-        [
-            [7.188560000000e02, 0, 6.071928000000e02],
-            [0, 7.188560000000e02, 1.852157000000e02],
-            [0, 0, 1],
-        ]
-    )
-    K_parking = np.array([[331.37, 0, 320], [0, 369.568, 240], [0, 0, 1]])
+    loader.load_data()
+    print("Data loaded!")
 
-    if dataset == DataSetEnum.KITTI:
-        K = K_kitty
-        path = "data/kitti/05/image_0/"
-    elif dataset == DataSetEnum.PARKING:
-        K = K_parking
-        path = "data/parking/images/"
-
-    path_loader = PathLoader(path, start=90, stride=stride)
-    path_iter = iter(path_loader)
-
-    states = []
-    for i in range(steps):
-        img_path = next(path_iter)
-        state = FrameState(i, img_path)
-        states.append(state)
-
+    K, poses, states = loader.get_data()
     for i in range(steps - 1):
         twoDtwoD(states[i], states[i + 1], K)
 
