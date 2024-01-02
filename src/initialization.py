@@ -6,8 +6,16 @@ from twoDtwoD import FeatureDetector, twoDtwoD
 
 
 def initialize(state1, state2, K, feature_detector=FeatureDetector.KLT):
-    return twoDtwoD(state1, state2, K, feature_detector)
+    cam_to_world, landmarks, keypoints =  twoDtwoD(state1, state2, K, feature_detector=feature_detector)
 
+    state2.cam_to_world = cam_to_world
+    state2.landmarks = landmarks
+    state2.keypoints = keypoints
+
+    state1.keypoints = keypoints
+    state1.landmarks = landmarks
+
+    return state1, state2
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
