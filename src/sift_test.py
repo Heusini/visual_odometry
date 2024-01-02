@@ -92,7 +92,7 @@ if __name__ == "__main__":
     print(f"State0 Landmark shape: {state0.landmarks.shape}")
     print(f"State0 features: {state0.features.get_positions().shape}")
     run_steps = 30
-    camera_poses = [np.eye(4), state0.cam_to_world]
+    camera_poses = [np.eye(4)]
 
     plt.ion()
     fig, ax1, ax2, ax3 = create_default_dashboard()
@@ -110,7 +110,7 @@ if __name__ == "__main__":
                 state_i.keypoints,
                 cv.imread(state_i.img_path, cv.IMREAD_GRAYSCALE),
                 cv.imread(state_j.img_path, cv.IMREAD_GRAYSCALE),
-                dict(winSize=(4, 4), maxLevel=1, criteria=(cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_COUNT, 50, 1))
+                dict(winSize=(31, 31), maxLevel=3, criteria=(cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_COUNT, 30, 6))
             )
             mask_klt = np.where(mask_klt.reshape(-1, 1) == True)[0]
             matched_keypoints_i = state_i.keypoints[mask_klt, :]
