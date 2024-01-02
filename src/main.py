@@ -5,6 +5,7 @@ from pnp import pnp
 from tracking import TrackManager
 import numpy as np
 import cv2 as cv
+from klt import klt
 
 # Constants
 init_bandwidth = 4
@@ -24,11 +25,9 @@ def main():
     K, poses, states = loader.get_data()
     print("Data retrieved!")
     
-
     init_frame_indices = DataLoader.best_params[dataset.name]["init_frame_indices"]
     initialize(states[init_frame_indices[0]], states[init_frame_indices[1]], K)
     init_states = [states[init_frame_indices[0]], states[init_frame_indices[1]]]
-
 
     plot_points_cameras(
         [init_states[0].landmarks, init_states[1].landmarks],
@@ -42,14 +41,19 @@ def main():
         same_keypoints_threshold=0.5,
         max_track_length=10,
     )
-    t = 0
-    while t < len(states) - 3:
-        if t == 50:
-            break
+    
+    for t in range(1, 20):
         
         # computes keypoints, landmarks and pose for step+1 frame, given step frame
         # Uses KLT to track keypoints, meaning the set of keypoints in step+1 is included in
         # the set of keypoints in step frame, is however <= in size
+        img_i = cv.imread(states[t].img_path, cv.IMREAD_GRAYSCALE)
+        img_j = cv.imread(states[t+1].img_path, cv.IMREAD_GRAYSCALE)
+
+        pts, mask = klt(states[t].keypoints.T, img_i, img_j)
+        
+
+
         states[t+1] = pnp(states[t], states[t+1], K)
         if DEBUG:
             # add new keypoints for current frame t
@@ -74,8 +78,6 @@ def main():
         else:
             if states[t].landmarks.shape[1] / states[0].landmarks.shape[1] < 0.2:
                 initialize(states[t], states[t + 3], K)
-
-        t += 1
 
     plot_points_cameras(
         [],

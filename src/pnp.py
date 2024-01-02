@@ -134,9 +134,13 @@ if __name__ == "__main__":
         img2 = cv.imread(state_j.img_path, cv.IMREAD_GRAYSCALE)
 
         if steps % 10 == 0 and steps != 0:
-            state_i, _ = twoDtwoD(
+            cam_to_world, landmarks, keypoints = twoDtwoD(
                 states[steps], states[steps + 5], K, FeatureDetector.SIFT
             )
+
+            states[steps + 5].cam_to_world = cam_to_world
+            states[steps + 5].landmarks = landmarks
+            states[steps + 5].keypoints = keypoints
 
         matched_landmarks = state_i.landmarks.T
         pts, mask = klt(state_i.keypoints.T, img1, img2)

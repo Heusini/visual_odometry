@@ -222,9 +222,7 @@ class TrackManager:
 
 if __name__ == "__main__":
     from initialization import initialize
-    from plot_points_cameras import plot_points_cameras
     from pnp import pnp_old as pnp
-    from twoDtwoD import FeatureDetector
     from utils.dataloader import DataLoader, Dataset
 
     # select dataset

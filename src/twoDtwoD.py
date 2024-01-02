@@ -89,7 +89,7 @@ def twoDtwoD(
     state_i.keypoints = p_i[:2, :]
     state_j.keypoints = p_j[:2, :]
 
-    return state_i, state_j
+    return M_camj_to_world, P_world[:3, :], p_j[:2, :]
 
 
 def calculate_relative_pose(points_i, points_j, K):
@@ -170,7 +170,13 @@ if __name__ == "__main__":
 
     K, poses, states = loader.get_data()
     for i in range(steps - 1):
-        twoDtwoD(states[i], states[i + 1], K)
+        cam_to_world, landmarks, keypoints = twoDtwoD(
+            states[i], states[i + 1], K, feature_detector=FeatureDetector.SIFT
+        )
+
+        states[i + 1].cam_to_world = cam_to_world
+        states[i + 1].landmarks = landmarks
+        states[i + 1].keypoints = keypoints
 
     plot_points_cameras(
         [state.landmarks for state in states[0 : steps - 1]],

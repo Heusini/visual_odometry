@@ -34,8 +34,6 @@ if __name__ == "__main__":
     from ..tracking import TrackManager
     from dataloader import DataLoader, Dataset
     from ..initialization import initialize
-    from ..plot_points_cameras import plot_points_cameras
-    from ..twoDtwoD import FeatureDetector
     from ..pnp import pnp
     import numpy as np
     import cv2 as cv
