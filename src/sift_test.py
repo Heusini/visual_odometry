@@ -47,7 +47,7 @@ if __name__ == "__main__":
     from plot_points_cameras import plot_points_cameras
     from twoDtwoD import FeatureDetector
     from utils.dataloader import DataLoader, Dataset
-
+    from klt import klt
     # select dataset
     dataset = Dataset.PARKING
 
@@ -62,14 +62,14 @@ if __name__ == "__main__":
     K, poses, states = loader.get_data()
     print("Data retrieved!")
 
-    start_frame = 2
+    start_frame = 13
     img1 = cv.imread(states[0].img_path, cv.IMREAD_GRAYSCALE)
     img2 = cv.imread(states[start_frame].img_path, cv.IMREAD_GRAYSCALE)
 
     features1 = detect_features(img1)
     features2 = detect_features(img2)
 
-    mf_i, mf_j, _ = match_features(features1, features2)
+    mf_i, mf_j, _ = match_features(features1, features2, threshold=0.6)
     pos_i = mf_i.get_positions()
     pos_j = mf_j.get_positions()
     print(f"{len(pos_i)} keypoints matched")
@@ -82,49 +82,87 @@ if __name__ == "__main__":
     states[start_frame].features = Features(
         mf_j.keypoints[mask], mf_j.descriptors[mask]
     )
+    states[0].keypoints = np.array([pts.pt for pts in mf_i.keypoints[mask]])
+
+    states[start_frame].keypoints = np.array([pts.pt for pts in mf_j.keypoints[mask]])
     states[start_frame].landmarks = landmarks.T
     states[start_frame].cam_to_world = camj_to_world
 
     state0 = states[start_frame]
     print(f"State0 Landmark shape: {state0.landmarks.shape}")
     print(f"State0 features: {state0.features.get_positions().shape}")
-    run_steps = 10
-    camera_poses = [np.eye(4), state0.cam_to_world]
+    run_steps = 30
+    camera_poses = [np.eye(4)]
 
     plt.ion()
     fig, ax1, ax2, ax3 = create_default_dashboard()
     plt.show()
 
-    for step in range(start_frame + 1, min(run_steps, len(states))):
+    KLT = False
+    for step in range(1, min(run_steps, len(states))):
+        state_i = states[step - 1]
         state_j = states[step]
         imgj = cv.imread(state_j.img_path, cv.IMREAD_GRAYSCALE)
 
-        featuresj = detect_features(imgj)
-        print(featuresj.get_positions().shape)
-        print(state0.features.get_positions().shape)
+        if KLT: 
+            landmarks = state_i.landmarks
+            pts_j, mask_klt = klt(
+                state_i.keypoints,
+                cv.imread(state_i.img_path, cv.IMREAD_GRAYSCALE),
+                cv.imread(state_j.img_path, cv.IMREAD_GRAYSCALE),
+                dict(winSize=(31, 31), maxLevel=3, criteria=(cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_COUNT, 30, 6))
+            )
+            mask_klt = np.where(mask_klt.reshape(-1, 1) == True)[0]
+            matched_keypoints_i = state_i.keypoints[mask_klt, :]
+            matched_keypoints_j = pts_j.squeeze()[mask_klt]
+            matched_landmarks = landmarks[mask_klt, :]
 
-        mf_i, mf_j, mask = match_features(state0.features, featuresj, threshold=0.9)
-        print(mask.shape)
-        print(mf_i.get_positions().shape)
-        print(mf_j.get_positions().shape)
-        print(f"Landmark shape: {state0.landmarks.shape}")
+            print(f"#Landmarks: {matched_landmarks.shape}")
+            state_j.landmarks = matched_landmarks
+            state_j.keypoints = matched_keypoints_j
 
-        print(state0.landmarks[mask, :].shape)
-        print(mf_j.get_positions().shape)
-        camera_pose, mask_ransac = pnp(
-            mf_j.get_positions(), state0.landmarks[mask, :], K
-        )
-        camera_poses.append(camera_pose)
-        update_plot(
-            imgj,
-            [mf_j.get_positions().T, mf_i.get_positions().T],
-            state0.landmarks[mask, :],
-            camera_poses,
-            ax1,
-            ax2,
-            ax3,
-        )
+            camera_pose, mask_ransac = pnp(
+                matched_keypoints_j, matched_landmarks, K
+            )
+
+            matched_keypoints_j = matched_keypoints_j[mask_ransac.flatten(), :]
+            matched_landmarks = matched_landmarks[mask_ransac.flatten(), :]
+
+            camera_poses.append(camera_pose)
+            update_plot(
+                imgj,
+                [matched_keypoints_j.T, matched_keypoints_i.T],
+                matched_landmarks,
+                camera_poses,
+                ax1,
+                ax2,
+                ax3,
+            )
+        else:
+            featuresj = detect_features(imgj)
+            print(featuresj.get_positions().shape)
+            print(state0.features.get_positions().shape)
+
+            mf_i, mf_j, mask = match_features(state0.features, featuresj, threshold=0.9)
+            print(mask.shape)
+            print(mf_i.get_positions().shape)
+            print(mf_j.get_positions().shape)
+            print(f"Landmark shape: {state0.landmarks.shape}")
+
+            print(state0.landmarks[mask, :].shape)
+            print(mf_j.get_positions().shape)
+            camera_pose, mask_ransac = pnp(
+                mf_j.get_positions(), state0.landmarks[mask, :], K
+            )
+            camera_poses.append(camera_pose)
+            update_plot(
+                imgj,
+                [mf_j.get_positions().T, mf_i.get_positions().T],
+                state0.landmarks[mask, :],
+                camera_poses,
+                ax1,
+                ax2,
+                ax3,
+            )
         plt.draw()
-        input("Press Enter to continue...")
-
-    # plot_points_cameras([state0.landmarks.T], camera_poses)
+        plt.waitforbuttonpress()
