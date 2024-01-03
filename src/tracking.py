@@ -257,9 +257,10 @@ if __name__ == "__main__":
 
     plt.ion()
     fig = plt.figure(figsize=(10, 10))
-    gs = fig.add_gridspec(2, 1)
-    ax0 = fig.add_subplot(gs[0, 0])
+    gs = fig.add_gridspec(2, 2)
+    ax0 = fig.add_subplot(gs[0, :])
     ax1 = fig.add_subplot(gs[1, 0])
+    ax2 = fig.add_subplot(gs[1, 1])
     plt.show()
 
     for t in range(start_frame, 60):
@@ -308,6 +309,9 @@ if __name__ == "__main__":
         print(f"Found {landmarks.shape} new landmarks")
 
         if t > start_frame + 10:
+            ax0.clear()
+            ax1.clear()
+            
             # plot image using cv
             img = cv.imread(states[t].img_path)
             img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
@@ -365,22 +369,49 @@ if __name__ == "__main__":
                 landmarks[:, 0], landmarks[:, 0], s=20, c="blue", label="new landmarks"
             )
 
-            T_cam = states[t + 1].cam_to_world[:3, 3].reshape(-1, 1)
-            ax1.scatter(
-                T_cam[0, :], T_cam[2, :], s=20, c="red", label="camera position"
+            x_cam = np.array([[0.2, 0, 0, 1], [-0.2, 0, 0, 1]])
+            print(x_cam.shape)
+            T_cam = (states[t + 1].cam_to_world @ x_cam.T).T
+        
+            ax1.plot(
+                T_cam[:, 0], T_cam[:, 2],
+                c="red", label="camera position"
+            )
+            ax1.legend()
+
+            ax1.set_title("Current frame")
+            ax1.set_xlabel("x")
+            ax1.set_ylabel("z")
+            #ax1.set_aspect("equal", adjustable="box")
+
+            ax2.scatter(
+                states[t + 1].landmarks[:, 0],
+                states[t + 1].landmarks[:, 1],
+                s=20,
+                c="black",
+                label="all landmarks",
             )
 
+            ax2.plot(
+                T_cam[:, 0], T_cam[:, 2],
+                c="red", label="camera position"
+            )
             # add legend
-            if t == start_frame + 1:
-                ax1.legend(loc="upper left")
+            if t == start_frame + 11:
+                ax2.legend()
+                ax2.set_title("History of all landmarks in world frame")
+                ax2.set_xlabel("x")
+                ax2.set_ylabel("z")
+
+            #ax2.set_aspect("equal", adjustable="box")
 
             plt.draw()
             plt.waitforbuttonpress()
 
-        # states[t + 1].landmarks = np.concatenate(
-        #     [states[t + 1].landmarks, landmarks], axis=0
-        # )
+        states[t + 1].landmarks = np.concatenate(
+            [states[t + 1].landmarks, landmarks], axis=0
+        )
 
-        # states[t + 1].keypoints = np.concatenate(
-        #     [states[t + 1].keypoints, keypoints], axis=0
-        # )
+        states[t + 1].keypoints = np.concatenate(
+            [states[t + 1].keypoints, keypoints], axis=0
+        )
