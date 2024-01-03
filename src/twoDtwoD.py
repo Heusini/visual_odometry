@@ -76,13 +76,14 @@ def twoDtwoD(
     # filer points behind camera and far away
     max_distance = 100
     mask = np.logical_and(
-        P_cami[:, 2] > 0, np.abs(np.linalg.norm(P_cami, axis=1)) < max_distance
+            P_cami[2, :] > 0, np.abs(np.linalg.norm(P_cami, axis=0)) < max_distance
     )
-    P_cami = P_cami[mask, :]
-    p_i = p_i[mask, :]
-    p_j = p_j[mask, :]
+    P_cami = P_cami[:, mask]
+    print(f"{p_j.shape} p_j shape")
+    p_i = p_i[:, mask]
+    p_j = p_j[:, mask]
 
-    P_world = (M_cami_to_world @ P_cami.T).T
+    P_world = M_cami_to_world @ P_cami
 
     return M_camj_to_world, P_world[:, :3], p_j[:, :2]
 
