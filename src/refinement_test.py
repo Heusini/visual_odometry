@@ -83,7 +83,7 @@ if __name__ == "__main__":
     img1 = cv.imread(states[0].img_path, cv.IMREAD_GRAYSCALE)
     img2 = cv.imread(states[start_frame].img_path, cv.IMREAD_GRAYSCALE)
 
-    keypoints_0 = detect_features_shi_tomasi(img1, max_num=2000, threshold=0.01, non_maxima_suppression_size=10)
+    keypoints_0 = detect_features_shi_tomasi(img1, max_num=1000, threshold=0.03, non_maxima_suppression_size=10)
     keypoints_start_Frame, mask_good = matching_klt(states[:start_frame+1], keypoints_0, dict(winSize=(31, 31), maxLevel=3, criteria=(cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_COUNT, 30, 6)))
     
     states[0].keypoints = keypoints_0[mask_good, :]
@@ -120,7 +120,8 @@ if __name__ == "__main__":
     refined_camera_poses = [np.eye(4)]
 
     plt.ion()
-    fig, ax1, ax2, ax3 = create_default_dashboard()
+    fig, ax = create_default_dashboard()
+    ax1, ax2, ax3 = ax
     plt.show()
 
     for step in range(1, min(run_steps, len(states))):

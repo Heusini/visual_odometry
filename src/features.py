@@ -33,7 +33,7 @@ def detect_features(img) -> Features:
 
 def detect_features_shi_tomasi(img, max_num: int, threshold: float, non_maxima_suppression_size: float, plot_debug: bool = False) -> Features:
     # Detecting corners
-    corners = cv.goodFeaturesToTrack(img, max_num, threshold, non_maxima_suppression_size).squeeze()
+    corners = cv.goodFeaturesToTrack(img, max_num, threshold, non_maxima_suppression_size, blockSize= 31).squeeze()
 
     if plot_debug:
         for i in corners:
