@@ -2,8 +2,6 @@ import cv2 as cv
 import numpy as np
 from matplotlib import pyplot as plt
 
-
-
 class Dashboard:
     def __init__(self):
         self.fig, self.fig_axes = create_default_dashboard()
