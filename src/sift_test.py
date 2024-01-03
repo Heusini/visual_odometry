@@ -2,45 +2,11 @@ import cv2 as cv
 import numpy as np
 from matplotlib import pyplot as plt
 
-from dashboard import create_default_dashboard, cv_scatter
+from dashboard import create_default_dashboard, cv_scatter, Dashboard
 from features import Features, detect_features, match_features
 from plot_points_cameras import plot_points_cameras
 from pnp import pnp
 from twoDtwoD import initialize_camera_poses, twoDtwoD
-
-
-def update_plot(img, points_2d, points_3d, camera_poses, ax1, ax2, ax3):
-    color = [(0, 255, 0), (0, 0, 255), (255, 0, 0)]
-    img = cv.cvtColor(img, cv.COLOR_GRAY2BGR)
-    for i in range(len(points_2d)):
-        img = cv_scatter(img, points_2d[i], color[i], 3, -1)
-    ax1.imshow(img)
-
-    x_cams = []
-    y_cams = []
-    for cam in camera_poses:
-        centerpoint = cam @ np.array([0, 0, 0, 1])
-        x_cams.append(centerpoint[0])
-        y_cams.append(centerpoint[2])
-
-    x_min = np.min(x_cams)
-    x_max = np.max(x_cams)
-    y_min = np.min(y_cams)
-    y_max = np.max(y_cams)
-    ax2.set_xlim(x_min - 0.5, x_max + 0.5)
-    ax2.set_ylim(y_min - 0.5, y_max + 0.5)
-    ax2.scatter(x_cams, y_cams, s=20)
-
-    x_min = np.min(points_3d[:, 0])
-    x_max = np.max(points_3d[:, 0])
-    y_min = np.min(points_3d[:, 2])
-    y_max = np.max(points_3d[:, 2])
-    ax3.set_xlim(x_min - 0.5, x_max + 0.5)
-    ax3.set_ylim(y_min - 0.5, y_max + 0.5)
-    print(points_3d.shape)
-    ax3.scatter(points_3d[:, 0], points_3d[:, 2], s=20)
-    ax3.title.set_text("matched landmarks")
-
 
 if __name__ == "__main__":
     from initialization import initialize
@@ -49,7 +15,7 @@ if __name__ == "__main__":
     from utils.dataloader import DataLoader, Dataset
     from klt import klt
     # select dataset
-    dataset = Dataset.PARKING
+    dataset = Dataset.KITTI
 
     # load data
     # if you remove steps then all the images are used
@@ -95,10 +61,12 @@ if __name__ == "__main__":
     camera_poses = [np.eye(4)]
 
     plt.ion()
-    fig, ax1, ax2, ax3 = create_default_dashboard()
+    dashboard = Dashboard()
     plt.show()
+    plt.waitforbuttonpress()
 
-    KLT = False
+
+    KLT = True
     for step in range(1, min(run_steps, len(states))):
         state_i = states[step - 1]
         state_j = states[step]
@@ -129,15 +97,10 @@ if __name__ == "__main__":
             matched_landmarks = matched_landmarks[mask_ransac.flatten(), :]
 
             camera_poses.append(camera_pose)
-            update_plot(
-                imgj,
-                [matched_keypoints_j.T, matched_keypoints_i.T],
-                matched_landmarks,
-                camera_poses,
-                ax1,
-                ax2,
-                ax3,
-            )
+            dashboard.update_cams(1, camera_poses)
+            plot_points_3d = np.asarray([matched_landmarks[:,0], matched_landmarks[:,2]])
+            dashboard.update_axis(2, plot_points_3d)
+            dashboard.update_image(0, imgj, [mf_j.get_positions().T, mf_i.get_positions().T])
         else:
             featuresj = detect_features(imgj)
             print(featuresj.get_positions().shape)
@@ -155,14 +118,12 @@ if __name__ == "__main__":
                 mf_j.get_positions(), state0.landmarks[mask, :], K
             )
             camera_poses.append(camera_pose)
-            update_plot(
-                imgj,
-                [mf_j.get_positions().T, mf_i.get_positions().T],
-                state0.landmarks[mask, :],
-                camera_poses,
-                ax1,
-                ax2,
-                ax3,
-            )
+
+            dashboard.update_cams(1, camera_poses)
+            plot_points_3d = np.asarray([state0.landmarks[mask, :][:,0], state0.landmarks[mask,:][:,2]])
+            dashboard.update_axis(2, plot_points_3d)
+            dashboard.update_image(0, imgj, [mf_j.get_positions().T, mf_i.get_positions().T])
+        plt.pause(0.1)
         plt.draw()
-        plt.waitforbuttonpress()
+        # input("press enter to continue")
+    plt.waitforbuttonpress()
