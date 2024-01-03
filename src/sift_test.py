@@ -15,7 +15,7 @@ if __name__ == "__main__":
     from utils.dataloader import DataLoader, Dataset
     from klt import klt
     # select dataset
-    dataset = Dataset.KITTI
+    dataset = Dataset.PARKING
 
     # load data
     # if you remove steps then all the images are used
@@ -66,7 +66,7 @@ if __name__ == "__main__":
     plt.waitforbuttonpress()
 
 
-    KLT = False
+    KLT = True
     for step in range(1, min(run_steps, len(states))):
         state_i = states[step - 1]
         state_j = states[step]

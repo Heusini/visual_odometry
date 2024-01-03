@@ -67,7 +67,12 @@ def twoDtwoD(
     M_cami_to_world = state_i.cam_to_world
     M_camj_to_world = M_cami_to_world @ M_camj_to_cami
 
-    P_cami = linearTriangulation(p_i, p_j, K @ np.eye(3, 4), K @ M_cami_to_camj[0:3, :])
+    # P_cami = linearTriangulation(p_i, p_j, K @ np.eye(3, 4), K @ M_cami_to_camj[0:3, :])
+    # opencv triangulation
+    P_cami = cv.triangulatePoints(
+        K @ np.eye(3, 4), K @ M_cami_to_camj[0:3, :], p_i[:2, :], p_j[:2, :]
+    )
+    P_cami /= P_cami[3, :]
 
     # filer points behind camera and far away
     max_distance = 100
@@ -118,15 +123,12 @@ def initialize_camera_poses(points_i, points_j, K: np.ndarray, ref: np.ndarray =
 
     p_i = np.hstack([points_i, np.ones((points_i.shape[0], 1))]).T
     p_j = np.hstack([points_j, np.ones((points_j.shape[0], 1))]).T
-    P_cami = linearTriangulation(p_i, p_j, K @ np.eye(3, 4), K @ M_cami_to_camj[0:3, :])
 
-    #######
     # opencv triangulatePoints
-    # P_cami = cv.triangulatePoints(
-    #     K @ np.eye(3, 4), K @ M_cami_to_camj[0:3, :], p_i[:2, :], p_j[:2, :]
-    # )
-    # print(P_cami.shape)
-    #######
+    P_cami = cv.triangulatePoints(
+        K @ np.eye(3, 4), K @ M_cami_to_camj[0:3, :], p_i[:2, :], p_j[:2, :]
+    )
+    P_cami /= P_cami[3, :]
 
     # filer points behind camera
     mask = P_cami[2, :] > 0
