@@ -3,7 +3,8 @@ from typing import Any, List, NamedTuple
 import cv2 as cv
 import numpy as np
 from cv2 import calcOpticalFlowPyrLK
-
+from klt import klt
+import matplotlib.pyplot as plt
 
 # this is identical to the openCV KeyPoint class -> do not change
 class Keypoint(NamedTuple):
@@ -30,6 +31,27 @@ def detect_features(img) -> Features:
     kp, des = sift.detectAndCompute(img, None)
     return Features(kp, des)
 
+def detect_features_shi_tomasi(img, max_num: int, threshold: float, non_maxima_suppression_size: float, plot_debug: bool = False) -> Features:
+    # Detecting corners
+    corners = cv.goodFeaturesToTrack(img, max_num, threshold, non_maxima_suppression_size, blockSize= 31).squeeze()
+
+    if plot_debug:
+        for i in corners:
+            x,y = i.ravel()
+            cv.circle(img,(int(x),int(y)),3,255,-1)
+        plt.imshow(img),plt.show()
+        plt.waitforbuttonpress()
+
+    return corners
+
+def matching_klt(states_i_j, features_i, klt_params):
+    features_j = features_i
+    for i in range(0, len(states_i_j)-1):
+        img_i = cv.imread(states_i_j[i].img_path, cv.IMREAD_GRAYSCALE)
+        img_j = cv.imread(states_i_j[i + 1].img_path, cv.IMREAD_GRAYSCALE)
+        features_j, mask_good = klt(features_j, img_i, img_j, klt_params)
+    
+    return features_j, mask_good
 
 def match_features(
     feature_set_i: Features, feature_set_j: Features, threshold=0.6

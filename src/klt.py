@@ -2,7 +2,7 @@ import numpy as np
 import cv2 as cv
 
 def klt(
-    pts_i : np.ndarray,
+    pts_i : np.ndarray, # [N, 2] array of 2D keypoints
     img_i : np.ndarray,
     img_j : np.ndarray,
     lk_params : dict = dict(winSize=(15, 15), maxLevel=10, criteria=(cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_COUNT, 10, 0.03))) -> (np.ndarray, np.ndarray):
@@ -32,7 +32,10 @@ def klt(
         pts_i,
         None,
         **lk_params)
+
     
     mask = status.ravel() == 1
+
+    pts_j = np.reshape(pts_j, (pts_j.shape[0], 2))
 
     return pts_j, mask

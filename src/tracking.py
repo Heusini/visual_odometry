@@ -10,7 +10,6 @@ from klt import klt
 from state import FrameState
 from utils.linear_triangulation import linearTriangulation
 
-
 class Track:
     start_t: int
     end_t: int
@@ -47,7 +46,6 @@ class Track:
             raise Exception("Invalid time index")
 
         return self.keypoints[index, :, :]
-
 
 class TrackManager:
     active_tracks: Mapping[int, Track]  # maps from start frame index to track
@@ -114,8 +112,8 @@ class TrackManager:
         K: np.ndarray,
         compare_to_landmarks: bool = True,
     ) -> (np.ndarray, np.ndarray):
-        landmarks = np.zeros((3, 0))
-        keypoints = np.zeros((2, 0))
+        landmarks = np.zeros((0, 3))
+        keypoints = np.zeros((0, 2))
 
         for time_i in list(self.active_tracks.keys()):
             # skip tracks that are too short
@@ -127,36 +125,34 @@ class TrackManager:
             state_i = frame_states[time_i]
             state_j = frame_states[time_j]
 
-            M_cami_to_camj = np.linalg.inv(state_i.cam_to_world) @ state_j.cam_to_world
+            M_cami_to_camj = state_i.cam_to_world @ np.linalg.inv(state_j.cam_to_world)
 
-            kp_i = np.vstack([track.keypoints_start.T, np.ones((1, track.size()))])
-            kp_j = np.vstack([track.keypoints_end.T, np.ones((1, track.size()))])
+            kp_i = np.hstack([track.keypoints_start, np.ones((track.size(), 1))])
+            kp_j = np.hstack([track.keypoints_end, np.ones((track.size(), 1))])
             P_cami = linearTriangulation(
-                kp_i, kp_j, K @ np.eye(3, 4), K @ M_cami_to_camj[0:3, :]
-            )[:3, :]
+                kp_i.T, kp_j.T, K @ np.eye(3, 4), K @ M_cami_to_camj[0:3, :]
+            ).T
+
+            print(f"Found {P_cami.shape} new landmarks")
 
             # filter points behind camera and far away
             max_distance = 100
             mask_distance = np.logical_and(
-                P_cami[2, :] > 0, np.abs(np.linalg.norm(P_cami, axis=0)) < max_distance
+                P_cami[:, 2] > 0, np.abs(np.linalg.norm(P_cami, axis=1)) < max_distance
             )
-            # P_cami = P_cami[:, mask_distance]
-            # kp_j = kp_j[:, mask_distance]
+            P_cami = P_cami[mask_distance, :]
+            kp_j = kp_j[mask_distance, :]
 
-            P_world = state_i.cam_to_world @ np.vstack(
-                [P_cami, np.ones((1, P_cami.shape[1]))]
-            )
+            P_world = (state_i.cam_to_world @ P_cami.T).T
 
             # remove landmarks where the angle between the two cameras is too small
-            T_cami = state_i.cam_to_world[:3, 3].reshape(-1, 1)
-            T_camj = state_j.cam_to_world[:3, 3].reshape(-1, 1)
+            T_cami = state_i.cam_to_world[:3, 3]
+            T_camj = state_j.cam_to_world[:3, 3]
 
-            P_to_cami = P_world[:3, :] - T_cami
-            P_to_camj = P_world[:3, :] - T_camj
-            dot = np.diag(np.dot(P_to_cami.T, P_to_camj))
-
+            P_to_cami = P_world[:, :3] - T_cami
+            P_to_camj = P_world[:, :3] - T_camj
+            dot = np.einsum("ij,ij->i", P_to_cami, P_to_camj)
             angles = np.arccos(np.clip(dot, -1.0, 1.0))
-
             angle_mask = angles > self.angle_threshold
 
             print(
@@ -164,14 +160,14 @@ class TrackManager:
                 " have too small angle between cameras"
             )
 
-            P_world = P_world[:, angle_mask]
-            kp_j = kp_j[:, angle_mask]
+            P_world = P_world[angle_mask, :]
+            kp_j = kp_j[angle_mask, :]
 
             # remove landmarks that are too close to existing landmarks
             if compare_to_landmarks:
-                mask_x = self.threshold_mask(P_world[0, :], state_j.landmarks[0, :])
-                mask_y = self.threshold_mask(P_world[1, :], state_j.landmarks[1, :])
-                mask_z = self.threshold_mask(P_world[2, :], state_j.landmarks[2, :])
+                mask_x = self.threshold_mask(P_world[:, 0], state_j.landmarks[:, 0])
+                mask_y = self.threshold_mask(P_world[:, 1], state_j.landmarks[:, 1])
+                mask_z = self.threshold_mask(P_world[:, 2], state_j.landmarks[:, 2])
 
                 mask_pos = np.logical_not(
                     np.logical_and(np.logical_and(mask_x, mask_y), mask_z)
@@ -182,16 +178,16 @@ class TrackManager:
                     " are too close to existing landmarks"
                 )
 
-                P_world = P_world[:, mask_pos]
-                kp_j = kp_j[:, mask_pos]
+                P_world = P_world[mask_pos, :]
+                kp_j = kp_j[mask_pos, :]
 
             # state_j.landmarks = np.hstack([state_j.landmarks, P_world[:3, :]])
             # state_j.keypoints = np.hstack([state_j.keypoints, kp_j[:2, :]])
 
             del self.active_tracks[time_i]
 
-            landmarks = np.hstack([landmarks, P_world[:3, :]])
-            keypoints = np.hstack([keypoints, kp_j[:2, :]])
+            landmarks = np.concatenate([landmarks, P_world[:, :3]], axis=0)
+            keypoints = np.concatenate([keypoints, kp_j[:, :2]], axis=0)
 
         return landmarks, keypoints
 
@@ -222,8 +218,10 @@ class TrackManager:
 
 if __name__ == "__main__":
     from initialization import initialize
-    from pnp import pnp_old as pnp
+    from pnp import pnp
     from utils.dataloader import DataLoader, Dataset
+    from features import Features, detect_features, match_features
+    from twoDtwoD import initialize_camera_poses, twoDtwoD, FeatureDetector
 
     # select dataset
     dataset = Dataset.KITTI
@@ -239,19 +237,17 @@ if __name__ == "__main__":
     K, poses, states = loader.get_data()
     print("Data retrieved!")
 
-    # computes landmarks and pose for the first two frames
-    if dataset == Dataset.KITTI:
-        initialize(states[0], states[3], K)
-        init_states = [states[0], states[3]]
-    elif dataset == Dataset.PARKING:
-        initialize(states[0], states[3], K)
-        init_states = [states[0], states[3]]
-    elif dataset == Dataset.MALAGA:
-        initialize(states[0], states[4], K)
-        init_states = [states[0], states[4]]
-    elif dataset == Dataset.WOKO:
-        initialize(states[0], states[3], K)
-        init_states = [states[0], states[3]]
+    start_frame = 13
+    M_cam_to_world, landmarks, keypoints = twoDtwoD(
+        states[0],
+        states[start_frame],
+        K,
+        feature_detector=FeatureDetector.KLT,
+    )
+
+    states[start_frame].cam_to_world = M_cam_to_world
+    states[start_frame].landmarks = landmarks
+    states[start_frame].keypoints = keypoints
 
     track_manager = TrackManager(
         angle_threshold=2.5 * np.pi / 180,
@@ -261,20 +257,45 @@ if __name__ == "__main__":
 
     plt.ion()
     fig = plt.figure(figsize=(10, 10))
-    gs = fig.add_gridspec(2, 1)
-    ax0 = fig.add_subplot(gs[0, 0])
+    gs = fig.add_gridspec(2, 2)
+    ax0 = fig.add_subplot(gs[0, :])
     ax1 = fig.add_subplot(gs[1, 0])
+    ax2 = fig.add_subplot(gs[1, 1])
     plt.show()
 
-    for t in range(60):
-        states[t + 1] = pnp(states[t], states[t + 1], K)
+    for t in range(start_frame, 60):
 
-        track_manager.start_new_track(states[t], check_keypoints=True)
+        state_i = states[t]
+        state_j = states[t + 1]
+
+        img_i = cv.imread(state_i.img_path, cv.IMREAD_GRAYSCALE)
+        img_j = cv.imread(state_j.img_path, cv.IMREAD_GRAYSCALE)
+
+        state_j.keypoints, mask_klt = klt(
+            state_i.keypoints,
+            img_i,
+            img_j,
+        )
+
+        state_j.keypoints = state_j.keypoints[mask_klt, :]
+        state_j.landmarks = state_i.landmarks[mask_klt, :]
+
+        M_cam_tow_world, ransac_mask = pnp(
+            state_j.keypoints, state_j.landmarks, K
+        )
+
+        ransac_mask = np.squeeze(ransac_mask)
+
+        state_j.cam_to_world = M_cam_tow_world
+        state_j.landmarks = state_j.landmarks[ransac_mask, :]
+        state_j.keypoints = state_j.keypoints[ransac_mask, :]
+
+        track_manager.start_new_track(state_j, check_keypoints=True)
 
         track_manager.update(
             t,
-            img_i=cv.imread(states[t].img_path),
-            img_j=cv.imread(states[t + 1].img_path),
+            img_i=img_i,
+            img_j=img_j,
         )
 
         landmarks, keypoints = track_manager.get_new_landmarks(
@@ -285,45 +306,49 @@ if __name__ == "__main__":
             compare_to_landmarks=True,
         )
 
-        if t > 10:
+        print(f"Found {landmarks.shape} new landmarks")
+
+        if t > start_frame + 10:
+            ax0.clear()
+            ax1.clear()
+            
             # plot image using cv
             img = cv.imread(states[t].img_path)
             img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
 
             # plot keypoint tracks using cv2
-            n_tracks = len(track_manager.active_tracks)
-            for track_index, track in enumerate(track_manager.active_tracks.values()):
-                start = track.keypoints_start.astype(int)
-                end = track.keypoints_end.astype(int)
+            # n_tracks = len(track_manager.active_tracks)
+            # for track_index, track in enumerate(track_manager.active_tracks.values()):
+            #     start = track.keypoints_start.astype(int)
+            #     end = track.keypoints_end.astype(int)
 
-                for i in range(track.size()):
-                    # above line plot code but add to ax[0]
-                    cv.line(
-                        img,
-                        (start[i, 0], start[i, 1]),
-                        (end[i, 0], end[i, 1]),
-                        color=(255, 0, 0),
-                        thickness=1,
-                    )
+            #     for i in range(track.size()):
+            #         # above line plot code but add to ax[0]
+            #         cv.line(
+            #             img,
+            #             (start[i, 0], start[i, 1]),
+            #             (end[i, 0], end[i, 1]),
+            #             color=(255, 0, 0),
+            #             thickness=1,
+            #         )
 
             # plot keypoints using cv2
-            print(keypoints.shape)
-            for i in range(keypoints.shape[1]):
+            for i in range(keypoints.shape[0]):
                 cv.circle(
                     img,
-                    (int(keypoints[0, i]), int(keypoints[1, i])),
+                    (int(keypoints[i, 0]), int(keypoints[i, 1])),
                     radius=3,
                     color=(0, 0, 255),
                     thickness=-1,
                 )
 
             # plot existing keypoints using cv2
-            for i in range(states[t + 1].keypoints.shape[1]):
+            for i in range(states[t + 1].keypoints.shape[0]):
                 cv.circle(
                     img,
                     (
-                        int(states[t + 1].keypoints[0, i]),
-                        int(states[t + 1].keypoints[1, i]),
+                        int(states[t + 1].keypoints[i, 0]),
+                        int(states[t + 1].keypoints[i, 1]),
                     ),
                     radius=3,
                     color=(0, 255, 0),
@@ -333,30 +358,60 @@ if __name__ == "__main__":
             ax0.imshow(img)
 
             ax1.scatter(
-                states[t + 1].landmarks[0, :],
-                states[t + 1].landmarks[2, :],
+                states[t + 1].landmarks[:, 0],
+                states[t + 1].landmarks[:, 2],
                 s=20,
                 c="green",
                 label="previous landmarks",
             )
 
             ax1.scatter(
-                landmarks[0, :], landmarks[2, :], s=20, c="blue", label="new landmarks"
+                landmarks[:, 0], landmarks[:, 0], s=20, c="blue", label="new landmarks"
             )
 
-            T_cam = states[t + 1].cam_to_world[:3, 3].reshape(-1, 1)
-            ax1.scatter(
-                T_cam[0, :], T_cam[2, :], s=20, c="red", label="camera position"
+            x_cam = np.array([[0.2, 0, 0, 1], [-0.2, 0, 0, 1]])
+            print(x_cam.shape)
+            T_cam = (states[t + 1].cam_to_world @ x_cam.T).T
+        
+            ax1.plot(
+                T_cam[:, 0], T_cam[:, 2],
+                c="red", label="camera position"
+            )
+            ax1.legend()
+
+            ax1.set_title("Current frame")
+            ax1.set_xlabel("x")
+            ax1.set_ylabel("z")
+            #ax1.set_aspect("equal", adjustable="box")
+
+            ax2.scatter(
+                states[t + 1].landmarks[:, 0],
+                states[t + 1].landmarks[:, 1],
+                s=20,
+                c="black",
+                label="all landmarks",
             )
 
+            ax2.plot(
+                T_cam[:, 0], T_cam[:, 2],
+                c="red", label="camera position"
+            )
             # add legend
-            if t == 11:
-                ax1.legend(loc="upper left")
+            if t == start_frame + 11:
+                ax2.legend()
+                ax2.set_title("History of all landmarks in world frame")
+                ax2.set_xlabel("x")
+                ax2.set_ylabel("z")
+
+            #ax2.set_aspect("equal", adjustable="box")
 
             plt.draw()
             plt.waitforbuttonpress()
 
-        states[t + 1].landmarks = np.hstack([states[t + 1].landmarks, landmarks])
-        print(f"Found {landmarks.shape[1]} new landmarks")
-        print(f"Total number of landmarks: {states[t+1].landmarks.shape[1]}")
-        states[t + 1].keypoints = np.hstack([states[t + 1].keypoints, keypoints])
+        states[t + 1].landmarks = np.concatenate(
+            [states[t + 1].landmarks, landmarks], axis=0
+        )
+
+        states[t + 1].keypoints = np.concatenate(
+            [states[t + 1].keypoints, keypoints], axis=0
+        )

@@ -29,15 +29,14 @@ def twoDtwoD(
     img_i = cv.imread(state_i.img_path, cv.IMREAD_GRAYSCALE)
     img_j = cv.imread(state_j.img_path, cv.IMREAD_GRAYSCALE)
     state_i.features = detect_features(img_i)
-    pts_i = np.array([kp.pt for kp in state_i.features.keypoints])
+    pts_i = state_i.features.get_positions()
 
     if feature_detector == FeatureDetector.KLT:
         # perform klt
         pts_j, mask = klt(pts_i, img_i, img_j)
-
         # select only good keypoints
-        pos_i = pts_i[mask]
-        pos_j = pts_j.squeeze()[mask]
+        pos_i = pts_i[mask, :]
+        pos_j = pts_j[mask, :]
     else:
         state_j.features = detect_features(img_j)
         mf_i, mf_j, _ = match_features(state_i.features, state_j.features)
@@ -46,19 +45,19 @@ def twoDtwoD(
 
         pos_i = mf_i.get_positions()
         pos_j = mf_j.get_positions()
-        print(f"{len(pos_i)} keypoints matched")
-        print(f"{len(pos_j)} keypoints matched")
 
-    F, mask_f = geom.calc_fundamental_mat(pos_i, pos_j)
+    F, mask = geom.calc_fundamental_mat(pos_i, pos_j)
+    mask = mask.squeeze().astype(bool)
+    pos_i = pos_i[mask, :]
+    pos_j = pos_j[mask, :]
+
     E = geom.calc_essential_mat_from_fundamental_mat(F, K)
-    p_i = np.hstack([pos_i, np.ones((pos_i.shape[0], 1))]).T
-    p_j = np.hstack([pos_j, np.ones((pos_j.shape[0], 1))]).T
+    p_i = np.hstack([pos_i, np.ones((pos_i.shape[0], 1))])
+    p_j = np.hstack([pos_j, np.ones((pos_j.shape[0], 1))])
 
-    p_i = p_i[:, mask_f.ravel() == 1]
-    p_j = p_j[:, mask_f.ravel() == 1]
     R, T = decomposeEssentialMatrix(E)
     # Rotate -> Translate order
-    R_cami_to_camj, T_cami_to_camj = disambiguateRelativePose(R, T, p_i, p_j, K, K)
+    R_cami_to_camj, T_cami_to_camj = disambiguateRelativePose(R, T, p_i.T, p_j.T, K, K)
 
     M_cami_to_camj = np.eye(4)
     M_cami_to_camj[:3, :] = np.c_[R_cami_to_camj, T_cami_to_camj]
@@ -77,25 +76,15 @@ def twoDtwoD(
     # filer points behind camera and far away
     max_distance = 100
     mask = np.logical_and(
-        P_cami[2, :] > 0, np.abs(np.linalg.norm(P_cami, axis=0)) < max_distance
+        P_cami[:, 2] > 0, np.abs(np.linalg.norm(P_cami, axis=1)) < max_distance
     )
-    P_cami = P_cami[:, mask]
-    p_i = p_i[:, mask]
-    p_j = p_j[:, mask]
+    P_cami = P_cami[mask, :]
+    p_i = p_i[mask, :]
+    p_j = p_j[mask, :]
 
-    P_world = M_cami_to_world @ P_cami
+    P_world = (M_cami_to_world @ P_cami.T).T
 
-    state_j.cam_to_world = M_camj_to_world
-    state_j.landmarks = P_world[:3, :]
-    state_i.landmarks = P_world[:3, :]
-
-    # updating the keypoints in each state since there have been multiple
-    # filtering steps that reduced the number of initial keypoints
-    state_i.keypoints = p_i[:2, :]
-    state_j.keypoints = p_j[:2, :]
-
-    return M_camj_to_world, P_world[:3, :], p_j[:2, :]
-
+    return M_camj_to_world, P_world[:, :3], p_j[:, :2]
 
 def calculate_relative_pose(points_i, points_j, K):
     F, mask_f = geom.calc_fundamental_mat(points_i, points_j)
@@ -111,14 +100,14 @@ def calculate_relative_pose(points_i, points_j, K):
 
     return R_cami_to_camj, T_cami_to_camj
 
-
-def initialize_camera_poses(points_i, points_j, K: np.ndarray, ref: np.ndarray = np.eye(4)):
+# TODO: kinda confusing that the returned landmarks are already masked
+def initialize_camera_poses(points_i, points_j, K: np.ndarray):
     R_cami_to_camj, T_cami_to_camj = calculate_relative_pose(points_i, points_j, K)
     M_cami_to_camj = np.eye(4)
     M_cami_to_camj[:3, :] = np.c_[R_cami_to_camj, T_cami_to_camj]
 
     M_camj_to_cami = np.linalg.inv(M_cami_to_camj)
-    M_cami_to_world = ref
+    M_cami_to_world = np.eye(3, 4)
     M_camj_to_world = M_cami_to_world @ M_camj_to_cami
 
     p_i = np.hstack([points_i, np.ones((points_i.shape[0], 1))]).T
@@ -130,8 +119,11 @@ def initialize_camera_poses(points_i, points_j, K: np.ndarray, ref: np.ndarray =
     )
     P_cami /= P_cami[3, :]
 
-    # filer points behind camera
-    mask = P_cami[2, :] > 0
+    # filer points behind camera and far away
+    max_distance = 100
+    mask = np.logical_and(
+        P_cami[2, :] > 0, np.abs(np.linalg.norm(P_cami, axis=0)) < max_distance
+    )
     P_cami = P_cami[:, mask]
     p_i = p_i[:, mask]
     p_j = p_j[:, mask]
@@ -145,7 +137,6 @@ def initialize_camera_poses(points_i, points_j, K: np.ndarray, ref: np.ndarray =
     # filtering steps that reduced the number of initial keypoints
 
     return cam_to_world, landmarks, mask
-
 
 class DataSetEnum(Enum):
     KITTI = "kitti"

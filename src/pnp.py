@@ -8,16 +8,16 @@ from state import FrameState
 from twoDtwoD import FeatureDetector, twoDtwoD
 
 
-def pnp(points_2d: np.ndarray, points_3d: np.ndarray, K: np.ndarray):
+def pnp(points_2d: np.ndarray, points_3d: np.ndarray, K: np.ndarray, reprojection_error: float = 1.0, confidence: float = 0.9999, num_iterations: int = 50000):
     success, rotation_vector_world_camj, translation_world_camj, mask_ransac = (
         cv.solvePnPRansac(
             objectPoints=points_3d,
             imagePoints=points_2d,
             cameraMatrix=K,
             distCoeffs=np.zeros((4, 1)),
-            iterationsCount=50000,
-            reprojectionError=1.0,
-            confidence=0.9999,
+            iterationsCount=num_iterations,
+            reprojectionError=reprojection_error,
+            confidence=confidence,
         )
     )
 
