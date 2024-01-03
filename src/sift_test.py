@@ -66,7 +66,7 @@ if __name__ == "__main__":
     plt.waitforbuttonpress()
 
 
-    KLT = True
+    KLT = False
     for step in range(1, min(run_steps, len(states))):
         state_i = states[step - 1]
         state_j = states[step]

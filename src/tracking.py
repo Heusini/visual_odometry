@@ -259,6 +259,13 @@ if __name__ == "__main__":
         max_track_length=10,
     )
 
+    plt.ion()
+    fig = plt.figure(figsize=(10, 10))
+    gs = fig.add_gridspec(2, 1)
+    ax0 = fig.add_subplot(gs[0, 0])
+    ax1 = fig.add_subplot(gs[1, 0])
+    plt.show()
+
     for t in range(60):
         states[t + 1] = pnp(states[t], states[t + 1], K)
 
@@ -323,8 +330,31 @@ if __name__ == "__main__":
                     thickness=-1,
                 )
 
-            cv.imshow("image", img)
-            cv.waitKey()
+            ax0.imshow(img)
+
+            ax1.scatter(
+                states[t + 1].landmarks[0, :],
+                states[t + 1].landmarks[2, :],
+                s=20,
+                c="green",
+                label="previous landmarks",
+            )
+
+            ax1.scatter(
+                landmarks[0, :], landmarks[2, :], s=20, c="blue", label="new landmarks"
+            )
+
+            T_cam = states[t + 1].cam_to_world[:3, 3].reshape(-1, 1)
+            ax1.scatter(
+                T_cam[0, :], T_cam[2, :], s=20, c="red", label="camera position"
+            )
+
+            # add legend
+            if t == 11:
+                ax1.legend(loc="upper left")
+
+            plt.draw()
+            plt.waitforbuttonpress()
 
         states[t + 1].landmarks = np.hstack([states[t + 1].landmarks, landmarks])
         print(f"Found {landmarks.shape[1]} new landmarks")

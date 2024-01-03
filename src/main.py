@@ -25,7 +25,7 @@ def main():
     K, poses, states = loader.get_data()
     print("Data retrieved!")
     
-    init_frame_indices = DataLoader.best_params[dataset.name]["init_frame_indices"]
+    start_a, start_b = DataLoader.best_params[dataset.name]["init_frame_indices"]
     initialize(states[init_frame_indices[0]], states[init_frame_indices[1]], K)
     init_states = [states[init_frame_indices[0]], states[init_frame_indices[1]]]
 
