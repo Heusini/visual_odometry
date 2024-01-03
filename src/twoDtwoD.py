@@ -68,22 +68,25 @@ def twoDtwoD(
 
     # P_cami = linearTriangulation(p_i, p_j, K @ np.eye(3, 4), K @ M_cami_to_camj[0:3, :])
     # opencv triangulation
+    # epects [2, N] and [3, N] arrays (!)
     P_cami = cv.triangulatePoints(
-        K @ np.eye(3, 4), K @ M_cami_to_camj[0:3, :], p_i[:2, :], p_j[:2, :]
+        K @ np.eye(3, 4), K @ M_cami_to_camj[0:3, :], p_i[:, :2].T, p_j[:, :2].T
     )
+    print(f"{P_cami.shape} P_cami shape")
     P_cami /= P_cami[3, :]
+    P_cami = P_cami.T
 
     # filer points behind camera and far away
     max_distance = 100
     mask = np.logical_and(
-            P_cami[2, :] > 0, np.abs(np.linalg.norm(P_cami, axis=0)) < max_distance
+            P_cami[:, 2] > 0, np.abs(np.linalg.norm(P_cami, axis=1)) < max_distance
     )
-    P_cami = P_cami[:, mask]
+    P_cami = P_cami[mask, :]
     print(f"{p_j.shape} p_j shape")
-    p_i = p_i[:, mask]
-    p_j = p_j[:, mask]
+    p_i = p_i[mask, :]
+    p_j = p_j[mask, :]
 
-    P_world = M_cami_to_world @ P_cami
+    P_world = (M_cami_to_world @ P_cami.T).T
 
     return M_camj_to_world, P_world[:, :3], p_j[:, :2]
 
