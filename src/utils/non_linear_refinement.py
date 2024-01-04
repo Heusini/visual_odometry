@@ -3,8 +3,9 @@ import cv2 as cv
 from scipy.optimize import least_squares
 from utils.utils import HomogMatrix2twist, twist2HomogMatrix
 import matplotlib.pyplot as plt
+from scipy.special import huber
 
-def refine_camera_pose(keypoints: np.ndarray, landmarks: np.ndarray, C_guess, K, plot_debug: bool = False):
+def refine_camera_pose(keypoints: np.ndarray, landmarks: np.ndarray, C_guess, K, k_huber: float = 2, plot_debug: bool = False):
     P = keypoints.T
     X = landmarks.T
 
@@ -27,7 +28,7 @@ def refine_camera_pose(keypoints: np.ndarray, landmarks: np.ndarray, C_guess, K,
         p_projected = p_projected_hom[:2, :] / p_projected_hom[2, :]
 
         # Compute reprojection error
-        error = P - p_projected
+        error = huber(k_huber, P - p_projected)
 
         if plot_debug:
             plt.clf()
