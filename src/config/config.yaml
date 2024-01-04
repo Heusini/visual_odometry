@@ -29,7 +29,7 @@ PARKING:
       confidence: 0.9999
       num_iterations: 100
     same_keypoints_threshold: 2
-    max_depth_distance: 50
+    max_depth_distance: 100
 
 ### KITTI ###
 KITTI:

@@ -36,19 +36,20 @@ class Track:
             f" {self.start_t}"
         )
 
-        min_border_distance = 0.2 * np.min(img_size)
-        mask_x = np.logical_and(
-            keypoints_next[:, 0] > min_border_distance,
-            keypoints_next[:, 0] < img_size[1] - min_border_distance,
-        )
-        mask_y = np.logical_and(
-            keypoints_next[:, 1] > min_border_distance,
-            keypoints_next[:, 1] < img_size[0] - min_border_distance,
-        )
+        # min_border_distance = 0.2 * np.min(img_size)
+        # mask_x = np.logical_and(
+        #     keypoints_next[:, 0] > min_border_distance,
+        #     keypoints_next[:, 0] < img_size[1] - min_border_distance,
+        # )
+        # mask_y = np.logical_and(
+        #     keypoints_next[:, 1] > min_border_distance,
+        #     keypoints_next[:, 1] < img_size[0] - min_border_distance,
+        # )
 
-        border_mask = np.logical_and(mask_x, mask_y)
+        # border_mask = np.logical_and(mask_x, mask_y)
 
-        mask = np.logical_and(klt_mask, border_mask)
+        # mask = np.logical_and(klt_mask, border_mask)
+        mask = klt_mask
 
         keypoints_next = keypoints_next[mask, :]
         self.keypoints_start = self.keypoints_start[mask, :]
@@ -169,15 +170,16 @@ class TrackManager:
             P_world = P_world[mask_distance, :]
             kp_j = kp_j[mask_distance, :]
 
-            reprojection = (K @ np.linalg.inv(state_j.cam_to_world)[0:3, :] @ P_world.T).T
-            reprojection /= np.reshape(reprojection[:, 2], (-1, 1))
+            # reprojection = (K @ np.linalg.inv(state_j.cam_to_world)[0:3, :] @ P_world.T).T
+            # reprojection /= np.reshape(reprojection[:, 2], (-1, 1))
 
-            error = np.linalg.norm(reprojection[:, :2] - kp_j[:, :2], axis=1)
-            print(f"mean reprojection error: {np.mean(error)}")
+            # error = np.linalg.norm(reprojection[:, :2] - kp_j[:, :2], axis=1)
+            # print(f"mean reprojection error: {np.mean(error)}")
 
-            error_mask = error < 3
-            P_world = P_world[error_mask, :]
-            kp_j = kp_j[error_mask, :]
+            # error_mask = error < 5
+            # P_world = P_world[error_mask, :]
+            # kp_j = kp_j[error_mask, :]
+
             # #remove landmarks where the angle between the two cameras is too small
             # T_cami = state_i.cam_to_world[:3, 3]
             # T_camj = state_j.cam_to_world[:3, 3]
@@ -260,7 +262,7 @@ if __name__ == "__main__":
 
     # load data
     # if you remove steps then all the images are used
-    loader = DataLoader(dataset, start=0, stride=1, steps=float('inf'))
+    loader = DataLoader(dataset, start=300, stride=1, steps=float('inf'))
     print("Loading data...")
 
     config = loader.config
@@ -331,6 +333,8 @@ if __name__ == "__main__":
     ax3 = fig.add_subplot(gs[1, 2])
     plt.show()
 
+    cam_hist = np.zeros((len(states), 3))
+
     for t in range(ref_frame, len(states)):
 
         state_i = states[t]
@@ -378,11 +382,11 @@ if __name__ == "__main__":
             lk_params=lk_params
         )
 
-        track_manager.start_new_track(state_j, check_keypoints=True)
+        track_manager.start_new_track(state_j, check_keypoints=False)
 
         landmarks, keypoints = track_manager.get_new_landmarks(
             t + 1,
-            min_track_length=4,
+            min_track_length=6,
             frame_states=states,
             K=K,
             compare_to_landmarks=False,
@@ -393,7 +397,7 @@ if __name__ == "__main__":
         ax0.clear()
         ax1.clear()
 
-        if t % 150 == 0:
+        if t % 30 == 0:
             ax2.clear()
         
         # plot image using cv
@@ -462,6 +466,9 @@ if __name__ == "__main__":
                 label="new landmarks"
             )
 
+        ax1.set_xlim(-20, 20)
+        ax1.set_ylim(-2, 70)
+
         x_cam = np.array([[0.2, 0, 0, 1], [-0.2, 0, 0, 1]])
         print(x_cam.shape)
         T_cam = (state_j.cam_to_world @ x_cam.T).T
@@ -480,12 +487,15 @@ if __name__ == "__main__":
         ax1.set_ylabel("z")
         #ax1.set_aspect("equal", adjustable="box")
 
+        cam_hist[t, :] = (state_j.cam_to_world[:3, 3])
+
         ax2.scatter(
             landmarks[:, 0],
             landmarks[:, 2],
             s=1,
             c="black",
             label="all landmarks",
+            alpha=0.01,
         )
 
         ax2.scatter(
@@ -506,29 +516,21 @@ if __name__ == "__main__":
             ax2.set_ylabel("z")
 
         #ax2.set_aspect("equal", adjustable="box")
-            
-        n_new_landmarks = landmarks.shape[0]
-        n_existing_landmarks = state_j.landmarks.shape[0]
-        n_total_landmarks = n_new_landmarks + n_existing_landmarks
-
-        # add barplot
         ax3.clear()
-        ax3.bar(
-            ["new landmarks", "existing landmarks", "total landmarks"],
-            [n_new_landmarks, n_existing_landmarks, n_total_landmarks],
-            color=["blue", "green"],
+        ax3.scatter(
+            cam_hist[:, 0],
+            cam_hist[:, 2],
+            s=1,
+            c="black",
+            label="camera position",
+            alpha=1,
         )
 
+        state_j.keypoints = np.concatenate([state_j.keypoints, keypoints], axis=0)
+        state_j.landmarks = np.concatenate([state_j.landmarks, landmarks], axis=0)
 
         plt.draw()
         if AUTO:
             plt.pause(0.1)
         else:
             plt.waitforbuttonpress()
-        state_j.landmarks = np.concatenate(
-            [state_j.landmarks, landmarks], axis=0
-        )
-
-        state_j.keypoints = np.concatenate(
-            [state_j.keypoints, keypoints], axis=0
-        )
