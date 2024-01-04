@@ -277,11 +277,12 @@ if __name__ == "__main__":
     )
 
     plt.ion()
-    fig = plt.figure(figsize=(10, 10))
-    gs = fig.add_gridspec(2, 2)
+    fig = plt.figure(figsize=(15, 10))
+    gs = fig.add_gridspec(2, 3)
     ax0 = fig.add_subplot(gs[0, :])
     ax1 = fig.add_subplot(gs[1, 0])
     ax2 = fig.add_subplot(gs[1, 1])
+    ax3 = fig.add_subplot(gs[1, 2])
     plt.show()
 
     for t in range(start_frame, 200):
@@ -389,7 +390,6 @@ if __name__ == "__main__":
             c="green",
             label="previous landmarks",
         )
-
     
         if landmarks.shape[0] > 0:
             landmarks_camera_space = np.hstack([landmarks, np.ones((landmarks.shape[0], 1))])
@@ -433,9 +433,12 @@ if __name__ == "__main__":
         ax2.scatter(
             state_j.cam_to_world[0, 3],
             state_j.cam_to_world[2, 3],
-            s=20,
+            s=3,
             c="red",
             label="camera position",
+            # set to cross
+            marker="x",
+
         )
         # add legend
         if t == start_frame:
@@ -445,6 +448,19 @@ if __name__ == "__main__":
             ax2.set_ylabel("z")
 
         #ax2.set_aspect("equal", adjustable="box")
+            
+        n_new_landmarks = landmarks.shape[0]
+        n_existing_landmarks = state_j.landmarks.shape[0]
+        n_total_landmarks = n_new_landmarks + n_existing_landmarks
+
+        # add barplot
+        ax3.clear()
+        ax3.bar(
+            ["new landmarks", "existing landmarks", "total landmarks"],
+            [n_new_landmarks, n_existing_landmarks, n_total_landmarks],
+            color=["blue", "green"],
+        )
+
 
         plt.draw()
         plt.waitforbuttonpress()
