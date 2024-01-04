@@ -23,7 +23,11 @@ class Track:
         self.end_t = start_t
 
     def update(self, img_i: np.ndarray, img_j: np.ndarray):
-        keypoints_next, mask = klt(self.keypoints_end[:, :], img_i, img_j)
+        keypoints_next, mask = klt(
+            self.keypoints_end[:, :], 
+            img_i, img_j,
+            dict(winSize=(31, 31), maxLevel=3, criteria=(cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_COUNT, 30, 6)))
+        
         print(
             f"KLT: tracking {np.sum(mask)} keypoints from track starting at"
             f" {self.start_t}"
@@ -138,14 +142,14 @@ class TrackManager:
             print(f"Found {P_world.shape} new landmarks")
 
             # filter points behind camera and far away
-            max_distance = 30   
+            max_distance = 50   
             mask_distance = np.logical_and(
                 P_camj[:, 2] > 0, np.abs(np.linalg.norm(P_camj, axis=1)) < max_distance
             )
             P_world = P_world[mask_distance, :]
             kp_j = kp_j[mask_distance, :]
 
-            # remove landmarks where the angle between the two cameras is too small
+            # #remove landmarks where the angle between the two cameras is too small
             # T_cami = state_i.cam_to_world[:3, 3]
             # T_camj = state_j.cam_to_world[:3, 3]
 
@@ -163,7 +167,7 @@ class TrackManager:
             # P_world = P_world[angle_mask, :]
             # kp_j = kp_j[angle_mask, :]
 
-            # remove landmarks that are too close to existing landmarks
+            # #remove landmarks that are too close to existing landmarks
             # if compare_to_landmarks:
             #     mask_x = self.threshold_mask(P_world[:, 0], state_j.landmarks[:, 0])
             #     mask_y = self.threshold_mask(P_world[:, 1], state_j.landmarks[:, 1])
@@ -178,16 +182,13 @@ class TrackManager:
             #         " are too close to existing landmarks"
             #     )
 
-                # P_world = P_world[mask_pos, :]
-                # kp_j = kp_j[mask_pos, :]
-
-            # state_j.landmarks = np.hstack([state_j.landmarks, P_world[:3, :]])
-            # state_j.keypoints = np.hstack([state_j.keypoints, kp_j[:2, :]])
-
-            del self.active_tracks[time_i]
+            #     P_world = P_world[mask_pos, :]
+            #     kp_j = kp_j[mask_pos, :]
 
             landmarks = np.concatenate([landmarks, P_world[:, :3]], axis=0)
             keypoints = np.concatenate([keypoints, kp_j[:, :2]], axis=0)
+
+            del self.active_tracks[time_i]
 
         return landmarks, keypoints
 
@@ -228,7 +229,7 @@ if __name__ == "__main__":
 
     # load data
     # if you remove steps then all the images are used
-    loader = DataLoader(dataset, start=105, stride=1, steps=100)
+    loader = DataLoader(dataset, start=105, stride=1, steps=300)
     print("Loading data...")
 
     loader.load_data()
@@ -237,7 +238,7 @@ if __name__ == "__main__":
     K, poses, states = loader.get_data()
     print("Data retrieved!")
 
-    start_frame = 13
+    start_frame = 2
     M_cam_to_world, landmarks, keypoints = twoDtwoD(
         states[0],
         states[start_frame],
@@ -266,7 +267,7 @@ if __name__ == "__main__":
     ax2 = fig.add_subplot(gs[1, 1])
     plt.show()
 
-    for t in range(start_frame, 60):
+    for t in range(start_frame, 200):
 
         state_i = states[t]
         state_j = states[t + 1]
@@ -309,7 +310,7 @@ if __name__ == "__main__":
             min_track_length=5,
             frame_states=states,
             K=K,
-            compare_to_landmarks=True,
+            compare_to_landmarks=False,
         )
 
         print(f"Found {landmarks.shape} new landmarks")
@@ -394,9 +395,10 @@ if __name__ == "__main__":
         ax2.scatter(
             state_j.landmarks[:, 0],
             state_j.landmarks[:, 2],
-            s=3,
+            s=1,
             c="black",
             label="all landmarks",
+            alpha=0.1
         )
 
         ax2.scatter(
