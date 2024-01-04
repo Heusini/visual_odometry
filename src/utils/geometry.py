@@ -34,13 +34,13 @@ class Transform3D:
         return self.get_R() @ self.get_t()
 
 
-def calc_fundamental_mat(points1, points2):
-    F, mask = cv2.findFundamentalMat(points1, points2, cv2.RANSAC, 1, 0.9999, 50000)
+def calc_fundamental_mat(points1, points2, reprojection_error=1, confidence=0.9999, num_iterations=50000):
+    F, mask = cv2.findFundamentalMat(points1, points2, cv2.RANSAC, reprojection_error, confidence, num_iterations)
     return F, mask
 
 
-def calc_essential_mat(points1, points2, K):
-    E, mask_e = cv2.findEssentialMat(points1, points2, K, cv2.RANSAC, 0.9999, 1, 50000)
+def calc_essential_mat(points1, points2, K, reprojection_error=1, confidence=0.9999, num_iterations=50000):
+    E, mask_e = cv2.findEssentialMat(points1, points2, K, cv2.RANSAC, confidence, reprojection_error, num_iterations)
     return E, mask_e
 
 

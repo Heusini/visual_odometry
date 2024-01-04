@@ -56,6 +56,12 @@ class DataLoader:
         else:
             print("FLAG does not exist")
 
+        # interprete keypoint matching for init
+        if self.config.init_params.matcher == 0:
+            self.config.init_params.matcher = FeatureDetector.KLT
+        else:
+            self.config.init_params.matcher = FeatureDetector.SIFT
+
     def __len__(self):
         if self.states is not None:
             return len(self.states)

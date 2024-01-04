@@ -22,10 +22,12 @@ class Track:
         self.keypoints_end = start_keypoints
         self.end_t = start_t
 
-    def update(self, img_i: np.ndarray, img_j: np.ndarray):
+    def update(self, img_i: np.ndarray, img_j: np.ndarray, lk_params):
         keypoints_next, klt_mask = klt(
             self.keypoints_end[:, :], 
-            img_i, img_j)
+            img_i, 
+            img_j,
+            lk_params=lk_params)
         
         img_size = img_i.shape
         
@@ -79,11 +81,13 @@ class TrackManager:
         angle_threshold: float,
         same_keypoints_threshold: float,
         max_track_length: int,
+        max_depth_distance: float
     ) -> None:
         self.active_tracks = {}
         self.angle_threshold = angle_threshold
         self.same_keypoints_threshold = same_keypoints_threshold
         self.max_track_length = max_track_length
+        self.max_depth_distance = max_depth_distance
 
     def start_new_track(self, state: FrameState, check_keypoints: bool = True):
         state.features = detect_features(cv.imread(state.img_path, cv.IMREAD_GRAYSCALE))
@@ -112,7 +116,7 @@ class TrackManager:
         diffs = np.abs(arr1[:, None] - arr2)
         return np.any(diffs <= self.same_keypoints_threshold, axis=1)
 
-    def update(self, t: int, img_i: np.ndarray, img_j: np.ndarray):
+    def update(self, t: int, img_i: np.ndarray, img_j: np.ndarray, lk_params: dict):
         for track_start_t in list(self.active_tracks.keys()):
             # remove tracks that are too long or have no keypoints left
             if (
@@ -122,7 +126,7 @@ class TrackManager:
                 del self.active_tracks[track_start_t]
                 continue
 
-            self.active_tracks[track_start_t].update(img_i, img_j)
+            self.active_tracks[track_start_t].update(img_i, img_j, lk_params=lk_params)
 
     def get_new_landmarks(
         self,
@@ -159,9 +163,8 @@ class TrackManager:
             print(f"Found {P_world.shape} new landmarks")
 
             # filter points behind camera and far away
-            max_distance = 50   
             mask_distance = np.logical_and(
-                P_camj[:, 2] > 0, np.abs(np.linalg.norm(P_camj, axis=1)) < max_distance
+                P_camj[:, 2] > 0, np.abs(np.linalg.norm(P_camj, axis=1)) < self.max_depth_distance
             )
             P_world = P_world[mask_distance, :]
             kp_j = kp_j[mask_distance, :]
@@ -248,8 +251,10 @@ if __name__ == "__main__":
 
     # load data
     # if you remove steps then all the images are used
-    loader = DataLoader(dataset, start=105, stride=1, steps=300)
+    loader = DataLoader(dataset, start=0, stride=1, steps=float('inf'))
     print("Loading data...")
+
+    config = loader.config
 
     loader.load_data()
     print("Data loaded!")
@@ -257,13 +262,37 @@ if __name__ == "__main__":
     K, poses, states = loader.get_data()
     print("Data retrieved!")
 
-    start_frame = 2
+    # organize params
+    ## Global params
+    lk_params = config.klt_params.__dict__
+    sift_params = config.sift_params
+
+    ## init params
+    ransac_params_F = config.init_params.ransac_params_F
+    ref_frame = config.init_params.baseline_frame_indices[0]
+    start_frame = config.init_params.baseline_frame_indices[1]
+    
+    ## cont params
+    cont_params = config.continuous_params
+    pnp_ransac_params = config.continuous_params.pnp_ransac_params
+
+    ## TODO: plotting params?
+
+    # Initialize 3D pointcloud
     M_cam_to_world, landmarks, keypoints = twoDtwoD(
-        states[0],
+        states[ref_frame],
         states[start_frame],
-        [s.img_path for s in states[:start_frame+1]],
+        [s.img_path for s in states[ref_frame:start_frame+1]],
         K,
-        feature_detector=FeatureDetector.KLT,
+        feature_detector=config.init_params.matcher,
+        ransac_params=(
+            ransac_params_F.threshold,
+            ransac_params_F.confidence,
+            ransac_params_F.num_iterations
+        ),
+        lk_params=lk_params,
+        sift_params=sift_params,
+        max_depth_distance=config.init_params.max_depth_distance
     )
 
     print(f"Found {landmarks.shape} new landmarks")
@@ -273,10 +302,15 @@ if __name__ == "__main__":
     states[start_frame].landmarks = landmarks
     states[start_frame].keypoints = keypoints
 
+    states[ref_frame].landmarks = landmarks
+    states[ref_frame].keypoints = keypoints
+
+    # init tracking 
     track_manager = TrackManager(
-        angle_threshold=2.5 * np.pi / 180,
-        same_keypoints_threshold=2,
-        max_track_length=10,
+        angle_threshold=cont_params.angle_threshold,
+        same_keypoints_threshold=cont_params.same_keypoints_threshold,
+        max_track_length=cont_params.max_track_length,
+        max_depth_distance=cont_params.max_depth_distance
     )
 
     plt.ion()
@@ -288,7 +322,7 @@ if __name__ == "__main__":
     ax3 = fig.add_subplot(gs[1, 2])
     plt.show()
 
-    for t in range(start_frame, 200):
+    for t in range(ref_frame, len(states)):
 
         state_i = states[t]
         state_j = states[t + 1]
@@ -304,6 +338,7 @@ if __name__ == "__main__":
             state_i.keypoints,
             img_i,
             img_j,
+            lk_params=lk_params
         )
 
         state_j.keypoints = state_j.keypoints[mask_klt, :]
@@ -313,7 +348,12 @@ if __name__ == "__main__":
         # if we assume that sift has 20 % outliers (from lecture) But I add a little margin,
         # that's why I set it to 100
         M_cam_to_world, ransac_mask = pnp(
-            state_j.keypoints, state_j.landmarks, K, num_iterations=100
+            state_j.keypoints, 
+            state_j.landmarks, 
+            K, 
+            num_iterations=pnp_ransac_params.num_iterations,
+            reprojection_error=pnp_ransac_params.threshold,
+            confidence=pnp_ransac_params.confidence
         )
 
         ransac_mask = np.squeeze(ransac_mask)
@@ -326,6 +366,7 @@ if __name__ == "__main__":
             t,
             img_i=img_i,
             img_j=img_j,
+            lk_params=lk_params
         )
 
         track_manager.start_new_track(state_j, check_keypoints=True)

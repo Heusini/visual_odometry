@@ -22,6 +22,10 @@ def twoDtwoD(
     state_j: FrameState,
     img_paths: list,
     K: np.ndarray,  # camera intrinsics
+    ransac_params: tuple,
+    lk_params,
+    sift_params,
+    max_depth_distance: float,
     feature_detector: FeatureDetector = FeatureDetector.KLT,
 ):
     img_i = cv.imread(state_i.img_path, cv.IMREAD_GRAYSCALE)
@@ -31,20 +35,20 @@ def twoDtwoD(
 
     if feature_detector == FeatureDetector.KLT:
         # perform klt
-        pts_j, mask = matching_klt(img_paths, pts_i, dict(winSize=(31, 31), maxLevel=3, criteria=(cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_COUNT, 30, 6)))
+        pts_j, mask = matching_klt(img_paths, pts_i, lk_params)
         # select only good keypoints
         pos_i = pts_i[mask, :]
         pos_j = pts_j[mask, :]
     else:
         state_j.features = detect_features(img_j)
-        mf_i, mf_j, _ = match_features(state_i.features, state_j.features)
+        mf_i, mf_j, _ = match_features(state_i.features, state_j.features, threshold=sift_params.threshold)
         state_i.features = mf_i
         state_j.features = mf_j
 
         pos_i = mf_i.get_positions()
         pos_j = mf_j.get_positions()
 
-    F, mask = geom.calc_fundamental_mat(pos_i, pos_j)
+    F, mask = geom.calc_fundamental_mat(pos_i, pos_j, *ransac_params)
     mask = mask.squeeze().astype(bool)
     pos_i = pos_i[mask, :]
     pos_j = pos_j[mask, :]
@@ -75,9 +79,8 @@ def twoDtwoD(
     P_cami = P_cami.T
 
     # filer points behind camera and far away
-    max_distance = 50
     mask = np.logical_and(
-            P_cami[:, 2] > 0, np.abs(np.linalg.norm(P_cami, axis=1)) < max_distance
+            P_cami[:, 2] > 0, np.abs(np.linalg.norm(P_cami, axis=1)) < max_depth_distance
     )
     P_cami = P_cami[mask, :]
     print(f"{p_j.shape} p_j shape")
