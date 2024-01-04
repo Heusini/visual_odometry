@@ -2,12 +2,20 @@ import os
 from enum import Enum
 from pathlib import Path
 
-import cv2
+import cv2 as cv
 import numpy as np
 
 from state import FrameState
 from utils.path_loader import PathLoader
+from features import FeatureDetector
+import yaml
 
+class ConvertYamlToClass:
+    def __init__(self, dictionary):
+        for key, value in dictionary.items():
+            if isinstance(value, dict):
+                value = ConvertYamlToClass(value)
+            self.__dict__[key] = value
 
 class Dataset(Enum):
     KITTI = 0
@@ -25,15 +33,7 @@ paths = {
     Dataset.WOKO: dataset_root + "woko_dataset/",
 }
 
-
 class DataLoader:
-    best_params = {
-        "KITTI": {"init_frame_indices": [0, 3]},
-        "PARKING": {"init_frame_indices": [0, 3]},
-        "MALAGA": {"init_frame_indices": [0, 4]},
-        "WOKO": {"init_frame_indices": [0, 3]},
-    }
-
     def __init__(self, dataset, start=0, stride=1, steps=float("inf")):
         self.dataset = dataset
         self.data_path = paths[dataset]
@@ -44,6 +44,18 @@ class DataLoader:
         self.stride = stride
         self.steps = steps
 
+        with open('src/config/config.yaml', 'r') as file:
+            data = yaml.safe_load(file)
+        
+        self.config = ConvertYamlToClass(data[self.dataset.name])
+
+        # interprete flag for termination criteria for KLT
+        if self.config.klt_params.criteria[0] == "TERM_CRITERIA_EPS_OR_COUNT":
+            self.config.klt_params.criteria[0] = cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_COUNT
+            self.config.klt_params.criteria = list(self.config.klt_params.criteria)
+        else:
+            print("FLAG does not exist")
+
     def __len__(self):
         if self.states is not None:
             return len(self.states)
@@ -53,7 +65,6 @@ class DataLoader:
         self._load_k()
         self._load_frames()
         self._load_poses()
-        self._load_params()
 
     def _load_k(self):
         method = f"_load_{self.dataset.name.lower()}_k"
@@ -66,26 +77,6 @@ class DataLoader:
     def _load_poses(self):
         method = f"_load_{self.dataset.name.lower()}_poses"
         getattr(self, method)(self.data_path)
-
-    def _load_params(self):
-        method = f"_load_{self.dataset.name.lower()}_poses"
-        getattr(self, method)(self.data_path)
-
-    def _load_kitti_params(self):
-        # TODO: Add params specific for kitti dataset
-        pass
-
-    def _load_parking_params(self):
-        # TODO: Add params specific for parking dataset
-        pass
-
-    def _load_malaga_params(self):
-        # TODO: Add params specific for malaga dataset
-        pass
-
-    def _load_woko_params(self):
-        # TODO: Add params specific for woko dataset
-        pass
 
     def _load_kitti_k(self):
         # Load KITTI specific 'k' data

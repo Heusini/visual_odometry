@@ -238,9 +238,11 @@ if __name__ == "__main__":
     from initialization import initialize
     from pnp import pnp
     from utils.dataloader import DataLoader, Dataset
-    from features import Features, detect_features, match_features
-    from twoDtwoD import initialize_camera_poses, twoDtwoD, FeatureDetector
-
+    from features import Features, detect_features, match_features, FeatureDetector
+    from twoDtwoD import initialize_camera_poses, twoDtwoD
+    
+    # update plots automatically or by clicking
+    AUTO = True
     # select dataset
     dataset = Dataset.KITTI
 
@@ -259,6 +261,7 @@ if __name__ == "__main__":
     M_cam_to_world, landmarks, keypoints = twoDtwoD(
         states[0],
         states[start_frame],
+        [s.img_path for s in states[:start_frame+1]],
         K,
         feature_detector=FeatureDetector.KLT,
     )
@@ -306,13 +309,16 @@ if __name__ == "__main__":
         state_j.keypoints = state_j.keypoints[mask_klt, :]
         state_j.landmarks = state_i.landmarks[mask_klt, :]
 
-        M_cam_tow_world, ransac_mask = pnp(
-            state_j.keypoints, state_j.landmarks, K
+        # theoretically: we don't need more than 51 iterations of RANSAC
+        # if we assume that sift has 20 % outliers (from lecture) But I add a little margin,
+        # that's why I set it to 100
+        M_cam_to_world, ransac_mask = pnp(
+            state_j.keypoints, state_j.landmarks, K, num_iterations=100
         )
 
         ransac_mask = np.squeeze(ransac_mask)
 
-        state_j.cam_to_world = M_cam_tow_world
+        state_j.cam_to_world = M_cam_to_world
         state_j.landmarks = state_j.landmarks[ransac_mask, :]
         state_j.keypoints = state_j.keypoints[ransac_mask, :]
 
@@ -463,8 +469,10 @@ if __name__ == "__main__":
 
 
         plt.draw()
-        plt.waitforbuttonpress()
-
+        if AUTO:
+            plt.pause(0.1)
+        else:
+            plt.waitforbuttonpress()
         state_j.landmarks = np.concatenate(
             [state_j.landmarks, landmarks], axis=0
         )

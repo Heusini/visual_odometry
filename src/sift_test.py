@@ -11,7 +11,7 @@ from twoDtwoD import initialize_camera_poses, twoDtwoD
 if __name__ == "__main__":
     from initialization import initialize
     from plot_points_cameras import plot_points_cameras
-    from twoDtwoD import FeatureDetector
+    from features import FeatureDetector
     from utils.dataloader import DataLoader, Dataset
     from klt import klt
     # select dataset

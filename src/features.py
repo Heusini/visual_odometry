@@ -1,10 +1,15 @@
 from typing import Any, List, NamedTuple
+from enum import Enum
 
 import cv2 as cv
 import numpy as np
 from cv2 import calcOpticalFlowPyrLK
 from klt import klt
 import matplotlib.pyplot as plt
+
+class FeatureDetector(Enum):
+    KLT = 0
+    SIFT = 1
 
 # this is identical to the openCV KeyPoint class -> do not change
 class Keypoint(NamedTuple):
@@ -26,7 +31,6 @@ class Features(NamedTuple):
 
 
 def detect_features(img) -> Features:
-    # gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY
     sift = cv.SIFT_create()
     kp, des = sift.detectAndCompute(img, None)
     return Features(kp, des)
@@ -44,11 +48,11 @@ def detect_features_shi_tomasi(img, max_num: int, threshold: float, non_maxima_s
 
     return corners
 
-def matching_klt(states_i_j, features_i, klt_params):
+def matching_klt(img_paths, features_i, klt_params):
     features_j = features_i
-    for i in range(0, len(states_i_j)-1):
-        img_i = cv.imread(states_i_j[i].img_path, cv.IMREAD_GRAYSCALE)
-        img_j = cv.imread(states_i_j[i + 1].img_path, cv.IMREAD_GRAYSCALE)
+    for i in range(0, len(img_paths)-1):
+        img_i = cv.imread(img_paths[i], cv.IMREAD_GRAYSCALE)
+        img_j = cv.imread(img_paths[i + 1], cv.IMREAD_GRAYSCALE)
         features_j, mask_good = klt(features_j, img_i, img_j, klt_params)
     
     return features_j, mask_good

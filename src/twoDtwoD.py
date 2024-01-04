@@ -4,7 +4,7 @@ import cv2 as cv
 import numpy as np
 
 import utils.geometry as geom
-from features import detect_features, match_features
+from features import detect_features, match_features, matching_klt
 from klt import klt
 from plot_points_cameras import plot_points_cameras
 from state import FrameState
@@ -12,10 +12,7 @@ from utils.decompose_essential_matrix import decomposeEssentialMatrix
 from utils.disambiguate_relative_pose import disambiguateRelativePose
 from utils.linear_triangulation import linearTriangulation
 from utils.path_loader import PathLoader
-
-class FeatureDetector(Enum):
-    KLT = 0
-    SIFT = 1
+from features import FeatureDetector
 
 
 # Note that order is scale rotate translate
@@ -23,6 +20,7 @@ class FeatureDetector(Enum):
 def twoDtwoD(
     state_i: FrameState,
     state_j: FrameState,
+    img_paths: list,
     K: np.ndarray,  # camera intrinsics
     feature_detector: FeatureDetector = FeatureDetector.KLT,
 ):
@@ -33,7 +31,7 @@ def twoDtwoD(
 
     if feature_detector == FeatureDetector.KLT:
         # perform klt
-        pts_j, mask = klt(pts_i, img_i, img_j)
+        pts_j, mask = matching_klt(img_paths, pts_i, dict(winSize=(31, 31), maxLevel=3, criteria=(cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_COUNT, 30, 6)))
         # select only good keypoints
         pos_i = pts_i[mask, :]
         pos_j = pts_j[mask, :]

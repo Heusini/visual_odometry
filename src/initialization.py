@@ -2,7 +2,8 @@ import cv2
 import numpy as np
 
 from plot_points_cameras import plot_points_cameras
-from twoDtwoD import FeatureDetector, twoDtwoD
+from twoDtwoD import twoDtwoD
+from features import FeatureDetector
 
 
 def initialize(state1, state2, K, feature_detector=FeatureDetector.KLT):

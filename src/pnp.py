@@ -5,7 +5,8 @@ import utils.geometry as geom
 from features import detect_features, match_features
 from klt import klt
 from state import FrameState
-from twoDtwoD import FeatureDetector, twoDtwoD
+from twoDtwoD import twoDtwoD
+from features import FeatureDetector
 
 
 def pnp(points_2d: np.ndarray, points_3d: np.ndarray, K: np.ndarray, reprojection_error: float = 1.0, confidence: float = 0.9999, num_iterations: int = 50000):
