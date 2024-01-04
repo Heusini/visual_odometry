@@ -386,7 +386,7 @@ if __name__ == "__main__":
 
         landmarks, keypoints = track_manager.get_new_landmarks(
             t + 1,
-            min_track_length=6,
+            min_track_length=cont_params.min_track_length,
             frame_states=states,
             K=K,
             compare_to_landmarks=False,
