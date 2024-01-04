@@ -1,0 +1,95 @@
+### PARKING ###
+PARKING:
+  klt_params:
+    window_size: [31, 31]
+    max_level: 3
+    criteria:
+      - TERM_CRITERIA_EPS_OR_COUNT
+      - 30
+      - 6
+
+  sift_params:
+    threshold: 0.6
+
+  init_params:
+    baseline_frame_indices: [0, 13] # frames used to init pointcloud
+    matcher: 0 # KLT = 0, SIFT = 1
+    ransac_params_F:
+      threshold: 1
+      confidence: 0.9999
+      num_iterations: 50000
+    max_depth_distance: 30
+  
+  continuous_params:
+    angle_threshold: 0.4 # calculate one that is reasonable; this angle is an indirect measure of the baseline
+    max_track_length: 1000 # for memory efficiency
+    min_track_length: 10 
+    pnp_ransac_params:
+      threshold: 1
+      confidence: 0.9999
+      num_iterations: 50000
+    same_keypoints_threshold: 0.9
+
+### KITTI ###
+KITTI:
+  klt_params:
+    window_size: [31, 31]
+    max_level: 3
+    criteria:
+      - TERM_CRITERIA_EPS_OR_COUNT
+      - 30
+      - 6
+
+  sift_params:
+    threshold: 0.6
+
+  init_params:
+    baseline_frame_indices: [0, 13] # frames used to init pointcloud
+    matcher: 0 # KLT = 0, SIFT = 1
+    ransac_params_F:
+      threshold: 1
+      confidence: 0.9999
+      num_iterations: 50000
+    max_depth_distance: 30
+  
+  continuous_params:
+    angle_threshold: 0.4 # calculate one that is reasonable; this angle is an indirect measure of the baseline
+    max_track_length: 1000 # for memory efficiency
+    min_track_length: 10 
+    pnp_ransac_params:
+      threshold: 1
+      confidence: 0.9999
+      num_iterations: 50000
+    same_keypoints_threshold: 0.9
+
+### MALAGA ####
+MALAGA:
+  klt_params:
+    window_size: [31, 31]
+    max_level: 3
+    criteria:
+      - TERM_CRITERIA_EPS_OR_COUNT
+      - 30
+      - 6
+
+  sift_params:
+    threshold: 0.6
+
+  init_params:
+    baseline_frame_indices: [0, 13] # frames used to init pointcloud
+    matcher: 0 # KLT = 0, SIFT = 1
+    ransac_params_F:
+      threshold: 1
+      confidence: 0.9999
+      num_iterations: 50000
+    max_depth_distance: 30
+  
+  continuous_params:
+    angle_threshold: 0.4 # calculate one that is reasonable; this angle is an indirect measure of the baseline
+    max_track_length: 1000 # for memory efficiency
+    min_track_length: 10 
+    pnp_ransac_params:
+      threshold: 1
+      confidence: 0.9999
+      num_iterations: 50000
+    same_keypoints_threshold: 0.9
