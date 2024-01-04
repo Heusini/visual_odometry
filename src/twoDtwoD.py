@@ -77,7 +77,7 @@ def twoDtwoD(
     P_cami = P_cami.T
 
     # filer points behind camera and far away
-    max_distance = 100
+    max_distance = 30
     mask = np.logical_and(
             P_cami[:, 2] > 0, np.abs(np.linalg.norm(P_cami, axis=1)) < max_distance
     )
