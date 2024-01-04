@@ -169,6 +169,15 @@ class TrackManager:
             P_world = P_world[mask_distance, :]
             kp_j = kp_j[mask_distance, :]
 
+            reprojection = (K @ np.linalg.inv(state_j.cam_to_world)[0:3, :] @ P_world.T).T
+            reprojection /= np.reshape(reprojection[:, 2], (-1, 1))
+
+            error = np.linalg.norm(reprojection[:, :2] - kp_j[:, :2], axis=1)
+            print(f"mean reprojection error: {np.mean(error)}")
+
+            error_mask = error < 3
+            P_world = P_world[error_mask, :]
+            kp_j = kp_j[error_mask, :]
             # #remove landmarks where the angle between the two cameras is too small
             # T_cami = state_i.cam_to_world[:3, 3]
             # T_camj = state_j.cam_to_world[:3, 3]
@@ -373,7 +382,7 @@ if __name__ == "__main__":
 
         landmarks, keypoints = track_manager.get_new_landmarks(
             t + 1,
-            min_track_length=3,
+            min_track_length=4,
             frame_states=states,
             K=K,
             compare_to_landmarks=False,
@@ -383,6 +392,9 @@ if __name__ == "__main__":
 
         ax0.clear()
         ax1.clear()
+
+        if t % 150 == 0:
+            ax2.clear()
         
         # plot image using cv
         img = cv.cvtColor(img_j, cv.COLOR_BGR2RGB)
@@ -469,12 +481,11 @@ if __name__ == "__main__":
         #ax1.set_aspect("equal", adjustable="box")
 
         ax2.scatter(
-            state_j.landmarks[:, 0],
-            state_j.landmarks[:, 2],
+            landmarks[:, 0],
+            landmarks[:, 2],
             s=1,
             c="black",
             label="all landmarks",
-            alpha=0.02
         )
 
         ax2.scatter(
