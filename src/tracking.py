@@ -23,18 +23,35 @@ class Track:
         self.end_t = start_t
 
     def update(self, img_i: np.ndarray, img_j: np.ndarray):
-        keypoints_next, mask = klt(
+        keypoints_next, klt_mask = klt(
             self.keypoints_end[:, :], 
-            img_i, img_j,
-            dict(winSize=(31, 31), maxLevel=3, criteria=(cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_COUNT, 30, 6)))
+            img_i, img_j)
+        
+        img_size = img_i.shape
         
         print(
-            f"KLT: tracking {np.sum(mask)} keypoints from track starting at"
+            f"KLT: tracking {np.sum(klt_mask)} keypoints from track starting at"
             f" {self.start_t}"
         )
+
+        min_border_distance = 0.2 * np.min(img_size)
+        mask_x = np.logical_and(
+            keypoints_next[:, 0] > min_border_distance,
+            keypoints_next[:, 0] < img_size[1] - min_border_distance,
+        )
+        mask_y = np.logical_and(
+            keypoints_next[:, 1] > min_border_distance,
+            keypoints_next[:, 1] < img_size[0] - min_border_distance,
+        )
+
+        border_mask = np.logical_and(mask_x, mask_y)
+
+        mask = np.logical_and(klt_mask, border_mask)
+
         keypoints_next = keypoints_next[mask, :]
         self.keypoints_start = self.keypoints_start[mask, :]
         self.keypoints_end = keypoints_next
+
         self.end_t += 1
 
     def size(self):
@@ -255,7 +272,7 @@ if __name__ == "__main__":
 
     track_manager = TrackManager(
         angle_threshold=2.5 * np.pi / 180,
-        same_keypoints_threshold=0.9,
+        same_keypoints_threshold=2,
         max_track_length=10,
     )
 
@@ -274,6 +291,8 @@ if __name__ == "__main__":
 
         img_i = cv.imread(state_i.img_path, cv.IMREAD_GRAYSCALE)
         img_j = cv.imread(state_j.img_path, cv.IMREAD_GRAYSCALE)
+
+        img_size = img_i.shape
 
         print(state_i.keypoints.shape)
 
@@ -304,10 +323,9 @@ if __name__ == "__main__":
 
         track_manager.start_new_track(state_j, check_keypoints=True)
 
-
         landmarks, keypoints = track_manager.get_new_landmarks(
             t + 1,
-            min_track_length=5,
+            min_track_length=3,
             frame_states=states,
             K=K,
             compare_to_landmarks=False,
@@ -362,32 +380,43 @@ if __name__ == "__main__":
 
         ax0.imshow(img)
 
+        landmarks_camera_space = np.hstack([state_j.landmarks, np.ones((state_j.landmarks.shape[0], 1))])
+        landmarks_camera_space = (np.linalg.inv(state_j.cam_to_world) @ landmarks_camera_space.T ).T
         ax1.scatter(
-            state_j.landmarks[:, 0],
-            state_j.landmarks[:, 2],
+            landmarks_camera_space[:, 0],
+            landmarks_camera_space[:, 2],
             s=20,
             c="green",
             label="previous landmarks",
         )
 
-        ax1.scatter(
-            landmarks[:, 0], landmarks[:, 2], s=20, c="blue", label="new landmarks"
-        )
+    
+        if landmarks.shape[0] > 0:
+            landmarks_camera_space = np.hstack([landmarks, np.ones((landmarks.shape[0], 1))])
+            landmarks_camera_space = (np.linalg.inv(state_j.cam_to_world) @ landmarks_camera_space.T ).T
+
+            ax1.scatter(
+                landmarks_camera_space[:, 0],
+                landmarks_camera_space[:, 2],
+                s=20, 
+                c="blue", 
+                label="new landmarks"
+            )
 
         x_cam = np.array([[0.2, 0, 0, 1], [-0.2, 0, 0, 1]])
         print(x_cam.shape)
         T_cam = (state_j.cam_to_world @ x_cam.T).T
     
         ax1.scatter(
-            state_j.cam_to_world[0, 3],
-            state_j.cam_to_world[2, 3],
+            0,
+            0,
             s=20,
             c="red",
             label="camera position",
         )
         ax1.legend()
 
-        ax1.set_title("Current frame")
+        ax1.set_title("landmarks in camera frame")
         ax1.set_xlabel("x")
         ax1.set_ylabel("z")
         #ax1.set_aspect("equal", adjustable="box")
@@ -398,7 +427,7 @@ if __name__ == "__main__":
             s=1,
             c="black",
             label="all landmarks",
-            alpha=0.1
+            alpha=0.02
         )
 
         ax2.scatter(
