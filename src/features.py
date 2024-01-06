@@ -31,7 +31,11 @@ class Features(NamedTuple):
 
 
 def detect_features(img) -> Features:
-    sift = cv.SIFT_create()
+    sift = cv.SIFT_create(nfeatures=0,
+                          nOctaveLayers=4,
+                          contrastThreshold=0.03,
+                          edgeThreshold=10,
+                          sigma=1.6)
     kp, des = sift.detectAndCompute(img, None)
     return Features(kp, des)
 
