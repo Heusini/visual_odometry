@@ -1,23 +1,24 @@
 ### PARKING ###
 PARKING:
   klt_params:
-    winSize: [31, 31]
-    maxLevel: 3
+    winSize: [21, 21]
+    maxLevel: 8
     criteria:
       - TERM_CRITERIA_EPS_OR_COUNT
-      - 30
-      - 6
+      - 10
+      - 0.001
+    minEigThreshold: 0.01
 
   sift_params:
-    threshold: 0.6
+    threshold: 0.8
 
   init_params:
-    baseline_frame_indices: [0, 13] # frames used to init pointcloud
+    baseline_frame_indices: [0, 15] # frames used to init pointcloud
     matcher: 0 # KLT = 0, SIFT = 1
     ransac_params_F:
-      threshold: 1
+      threshold: 0.1
       confidence: 0.9999
-      num_iterations: 50000
+      num_iterations: 100
     max_depth_distance: 50
   
   continuous_params:
@@ -34,23 +35,23 @@ PARKING:
 ### KITTI ###
 KITTI:
   klt_params:
-    winSize: [15, 15]
-    maxLevel: 10
+    winSize: [21, 21]
+    maxLevel: 8
     criteria:
       - TERM_CRITERIA_EPS_OR_COUNT
       - 10
-      - 0.03
-
+      - 0.001
+    minEigThreshold: 0.01
   sift_params:
-    threshold: 0.6
+    threshold: 0.8
 
   init_params:
-    baseline_frame_indices: [0, 2] # frames used to init pointcloud
-    matcher: 0 # KLT = 0, SIFT = 1
+    baseline_frame_indices: [0, 10] # frames used to init pointcloud
+    matcher: 1 # KLT = 0, SIFT = 1
     ransac_params_F:
-      threshold: 1
+      threshold: 0.1
       confidence: 0.9999
-      num_iterations: 50000
+      num_iterations: 100
     max_depth_distance: 50
   
   continuous_params:
@@ -67,23 +68,24 @@ KITTI:
 ### MALAGA ####
 MALAGA:
   klt_params:
-    winSize: [15, 15]
-    maxLevel: 10
+    winSize: [21, 21]
+    maxLevel: 8
     criteria:
       - TERM_CRITERIA_EPS_OR_COUNT
       - 10
-      - 0.03
+      - 0.001
+    minEigThreshold: 0.01
 
   sift_params:
-    threshold: 0.6
+    threshold: 0.8
 
   init_params:
-    baseline_frame_indices: [0, 4] # frames used to init pointcloud
-    matcher: 0 # KLT = 0, SIFT = 1
+    baseline_frame_indices: [0, 3] # frames used to init pointcloud
+    matcher: 1 # KLT = 0, SIFT = 1
     ransac_params_F:
-      threshold: 1
+      threshold: 0.1
       confidence: 0.9999
-      num_iterations: 50000
+      num_iterations: 100
     max_depth_distance: 50
   
   continuous_params:

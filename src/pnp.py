@@ -7,6 +7,7 @@ from klt import klt
 from state import FrameState
 from twoDtwoD import twoDtwoD
 from features import FeatureDetector
+from utils.utils import hom_inv
 
 
 def pnp(points_2d: np.ndarray, points_3d: np.ndarray, K: np.ndarray, reprojection_error: float = 1.0, confidence: float = 0.9999, num_iterations: int = 50000):
@@ -15,6 +16,7 @@ def pnp(points_2d: np.ndarray, points_3d: np.ndarray, K: np.ndarray, reprojectio
             objectPoints=points_3d,
             imagePoints=points_2d,
             cameraMatrix=K,
+            flags=cv.SOLVEPNP_P3P,
             distCoeffs=np.zeros((4, 1)),
             iterationsCount=num_iterations,
             reprojectionError=reprojection_error,
@@ -26,7 +28,7 @@ def pnp(points_2d: np.ndarray, points_3d: np.ndarray, K: np.ndarray, reprojectio
         print("OpenCV PNP failed")
         Exception("PNP Failed")
 
-    rotation_world_camj, jacobian_world_camj = cv.Rodrigues(rotation_vector_world_camj)
+    rotation_world_camj, _ = cv.Rodrigues(rotation_vector_world_camj)
     M_world_camj = np.vstack(
         [
             np.hstack([rotation_world_camj, translation_world_camj]),
@@ -35,7 +37,7 @@ def pnp(points_2d: np.ndarray, points_3d: np.ndarray, K: np.ndarray, reprojectio
     )
 
     # evlt return mask_ransac here
-    return np.linalg.inv(M_world_camj), mask_ransac
+    return hom_inv(M_world_camj), mask_ransac
 
 
 def pnp_old(state_i: FrameState, state_j: FrameState, K: np.ndarray):

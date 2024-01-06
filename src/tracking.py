@@ -8,7 +8,7 @@ import numpy as np
 from features import detect_features
 from klt import klt
 from state import FrameState
-from utils.linear_triangulation import linearTriangulation
+from utils.utils import hom_inv
 
 class Track:
     start_t: int
@@ -82,13 +82,15 @@ class TrackManager:
         angle_threshold: float,
         same_keypoints_threshold: float,
         max_track_length: int,
-        max_depth_distance: float
+        max_depth_distance: float,
+        init_keyframe: FrameState
     ) -> None:
         self.active_tracks = {}
         self.angle_threshold = angle_threshold
         self.same_keypoints_threshold = same_keypoints_threshold
         self.max_track_length = max_track_length
         self.max_depth_distance = max_depth_distance
+        self.prev_keyframe = init_keyframe
 
     def start_new_track(self, state: FrameState, check_keypoints: bool = True):
         state.features = detect_features(cv.imread(state.img_path, cv.IMREAD_GRAYSCALE))
@@ -144,11 +146,33 @@ class TrackManager:
             # skip tracks that are too short
             if self.active_tracks[time_i].length() < min_track_length:
                 continue
-
-            track = self.active_tracks[time_i]
-
             state_i = frame_states[time_i]
             state_j = frame_states[time_j]
+
+            # baseline_sigma = self._baseline_uncertainty(self.prev_keyframe.cam_to_world, state_j.cam_to_world, state_j.landmarks)
+
+            # if state_j.landmarks.shape[0] > 5:
+            #     if baseline_sigma < 0.15:
+            #         continue
+        
+            # M_cam_to_world, landmarks, keypoints = twoDtwoD(
+            #     self.prev_keyframe,
+            #     state_j,
+            #     [s.img_path for s in frame_states[self.prev_keyframe.t:time_j+1]],
+            #     K,
+            #     feature_detector=FeatureDetector.SIFT,
+            #     ransac_params=(
+            #         0.1,
+            #         0.999,
+            #         10000
+            #     ),
+            #     lk_params=dict(winSize=(21, 21),maxLevel=8,criteria=(3, 10, 0.001)),
+            #     sift_params=0.6,
+            #     max_depth_distance=100
+            # )
+            # self.prev_keyframe = state_j
+            # return landmarks, keypoints, M_cam_to_world
+            track = self.active_tracks[time_i]
 
             kp_i = np.hstack([track.keypoints_start, np.ones((track.size(), 1))])
             kp_j = np.hstack([track.keypoints_end, np.ones((track.size(), 1))])
@@ -223,6 +247,32 @@ class TrackManager:
 
         return landmarks, keypoints
 
+    
+
+    def _baseline_uncertainty(self, T0: np.ndarray, T1: np.ndarray,
+                              landmarks: np.ndarray) -> float:
+        T0_inv = hom_inv(T0)
+        T1_inv = hom_inv(T1)
+
+        # depth of the landmarks in first camera
+        camera_normal = T0[0:3, 0:3].T @ np.array([[0], [0], [1]])
+        camera_origin = T0_inv @ np.array([[0], [0], [0], [1]])
+        centered_landmarks = landmarks - camera_origin[0:3].ravel()
+        depths = []
+        for landmark in centered_landmarks:
+            d = np.dot(landmark, camera_normal.ravel())
+            if d > 0:
+                depths.append(d)
+
+        if len(depths) == 0:
+            return np.inf
+        depth = np.mean(depths)
+        # distance of the two poses
+        init = T0_inv[:3, 3]
+        final = T1_inv[:3, 3]
+        dist = np.linalg.norm(final - init)
+        return float(dist / depth)
+
     def plot_stats(self, current_state: FrameState):
         if len(list(self.tracks.keys())) > 0:
             # first plot
@@ -249,11 +299,10 @@ class TrackManager:
 
 
 if __name__ == "__main__":
-    from initialization import initialize
     from pnp import pnp
     from utils.dataloader import DataLoader, Dataset
-    from features import Features, detect_features, match_features, FeatureDetector
-    from twoDtwoD import initialize_camera_poses, twoDtwoD
+    from features import detect_features, FeatureDetector
+    from twoDtwoD import twoDtwoD
     
     # update plots automatically or by clicking
     AUTO = True
@@ -262,7 +311,7 @@ if __name__ == "__main__":
 
     # load data
     # if you remove steps then all the images are used
-    loader = DataLoader(dataset, start=300, stride=1, steps=float('inf'))
+    loader = DataLoader(dataset, start=0, stride=1, steps=float('inf'))
     print("Loading data...")
 
     config = loader.config
@@ -309,19 +358,22 @@ if __name__ == "__main__":
     print(f"Found {landmarks.shape} new landmarks")
     print(f"Found {keypoints.shape} new keypoints")
 
+    states[ref_frame].cam_to_world = np.eye(4)
+    states[ref_frame].landmarks = landmarks
+    states[ref_frame].keypoints = keypoints
+
     states[start_frame].cam_to_world = M_cam_to_world
     states[start_frame].landmarks = landmarks
     states[start_frame].keypoints = keypoints
 
-    states[ref_frame].landmarks = landmarks
-    states[ref_frame].keypoints = keypoints
 
     # init tracking 
     track_manager = TrackManager(
         angle_threshold=cont_params.angle_threshold,
         same_keypoints_threshold=cont_params.same_keypoints_threshold,
         max_track_length=cont_params.max_track_length,
-        max_depth_distance=cont_params.max_depth_distance
+        max_depth_distance=cont_params.max_depth_distance,
+        init_keyframe=states[ref_frame]
     )
 
     plt.ion()
@@ -360,20 +412,41 @@ if __name__ == "__main__":
         # theoretically: we don't need more than 51 iterations of RANSAC
         # if we assume that sift has 20 % outliers (from lecture) But I add a little margin,
         # that's why I set it to 100
-        M_cam_to_world, ransac_mask = pnp(
-            state_j.keypoints, 
-            state_j.landmarks, 
-            K, 
-            num_iterations=pnp_ransac_params.num_iterations,
-            reprojection_error=pnp_ransac_params.threshold,
-            confidence=pnp_ransac_params.confidence
-        )
+        if state_i.landmarks.shape[0] > 5:
+            M_cam_to_world, ransac_mask = pnp(
+                state_j.keypoints, 
+                state_j.landmarks, 
+                K, 
+                num_iterations=pnp_ransac_params.num_iterations,
+                reprojection_error=pnp_ransac_params.threshold,
+                confidence=pnp_ransac_params.confidence
+            )
+            ransac_mask = np.squeeze(ransac_mask)
 
-        ransac_mask = np.squeeze(ransac_mask)
+            state_j.cam_to_world = M_cam_to_world
+            state_j.landmarks = state_j.landmarks[ransac_mask, :]
+            state_j.keypoints = state_j.keypoints[ransac_mask, :]
+        else:
+            M_cam_to_world, landmarks, keypoints = twoDtwoD(
+                track_manager.prev_keyframe,
+                state_j,
+                [s.img_path for s in states[track_manager.prev_keyframe.t:t+1]],
+                K,
+                feature_detector=FeatureDetector.SIFT,
+                ransac_params=(
+                    0.1,
+                    0.999,
+                    10000
+                ),
+                lk_params=dict(winSize=(21, 21),maxLevel=8,criteria=(3, 10, 0.001)),
+                sift_params=0.6,
+                max_depth_distance=100
+            )
 
-        state_j.cam_to_world = M_cam_to_world
-        state_j.landmarks = state_j.landmarks[ransac_mask, :]
-        state_j.keypoints = state_j.keypoints[ransac_mask, :]
+            state_j.cam_to_world = M_cam_to_world
+            state_j.landmarks = state_j.landmarks
+            state_j.keypoints = state_j.keypoints
+
 
         track_manager.update(
             t,
@@ -392,6 +465,29 @@ if __name__ == "__main__":
             compare_to_landmarks=False,
         )
 
+        # baseline_sigma = track_manager._baseline_uncertainty(track_manager.prev_keyframe.cam_to_world, state_j.cam_to_world, state_j.landmarks)
+
+        # if baseline_sigma > 0.1:
+        #     M_cam_to_world, landmarks, keypoints = twoDtwoD(
+        #         track_manager.prev_keyframe,
+        #         state_j,
+        #         [s.img_path for s in states[track_manager.prev_keyframe.t:t+1]],
+        #         K,
+        #         feature_detector=FeatureDetector.SIFT,
+        #         ransac_params=(
+        #             0.1,
+        #             0.999,
+        #             10000
+        #         ),
+        #         lk_params=dict(winSize=(21, 21),maxLevel=8,criteria=(3, 10, 0.001)),
+        #         sift_params=0.8,
+        #         max_depth_distance=100
+        #     )
+        # track_manager.prev_keyframe = state_j
+        # state_j.cam_to_world = M_cam_to_world
+        # state_j.keypoints = keypoints
+        # state_j.landmarks = landmarks
+        
         print(f"Found {landmarks.shape} new landmarks")
 
         ax0.clear()
@@ -420,14 +516,14 @@ if __name__ == "__main__":
         #         )
 
         # plot keypoints using cv2
-        for i in range(keypoints.shape[0]):
-            cv.circle(
-                img,
-                (int(keypoints[i, 0]), int(keypoints[i, 1])),
-                radius=3,
-                color=(0, 0, 255),
-                thickness=-1,
-            )
+        # for i in range(keypoints.shape[0]):
+        #     cv.circle(
+        #         img,
+        #         (int(keypoints[i, 0]), int(keypoints[i, 1])),
+        #         radius=3,
+        #         color=(0, 0, 255),
+        #         thickness=-1,
+        #     )
 
         # plot existing keypoints using cv2
         for i in range(state_j.keypoints.shape[0]):
@@ -514,6 +610,7 @@ if __name__ == "__main__":
             ax2.set_title("History of all landmarks in world frame")
             ax2.set_xlabel("x")
             ax2.set_ylabel("z")
+            
 
         #ax2.set_aspect("equal", adjustable="box")
         ax3.clear()
@@ -525,7 +622,10 @@ if __name__ == "__main__":
             label="camera position",
             alpha=1,
         )
-
+        min_x = np.min(cam_hist[:, 0])
+        max_x = np.max(cam_hist[:, 0])
+        margin = 2
+        ax3.set_xlim(xmin=min(-2, min_x - margin), xmax=max(2, max_x + margin))
         state_j.keypoints = np.concatenate([state_j.keypoints, keypoints], axis=0)
         state_j.landmarks = np.concatenate([state_j.landmarks, landmarks], axis=0)
 

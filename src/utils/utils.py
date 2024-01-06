@@ -96,3 +96,11 @@ def twist2HomogMatrix(twist):
     H = expm(se_matrix)
 
     return H
+
+def hom_inv(T: np.ndarray) -> np.ndarray:
+    assert T.shape == (4, 4), "T has to be a homogeneous transform matrix "
+    I = np.zeros_like(T)
+    I[0:3, 0:3] = T[0:3, 0:3].T
+    I[0:3, 3] = -T[0:3, 0:3].T @ T[0:3, 3]
+    I[3, 3] = 1
+    return I

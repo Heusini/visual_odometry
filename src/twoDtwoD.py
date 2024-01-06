@@ -5,15 +5,13 @@ import numpy as np
 
 import utils.geometry as geom
 from features import detect_features, match_features, matching_klt
-from klt import klt
 from plot_points_cameras import plot_points_cameras
 from state import FrameState
 from utils.decompose_essential_matrix import decomposeEssentialMatrix
 from utils.disambiguate_relative_pose import disambiguateRelativePose
-from utils.linear_triangulation import linearTriangulation
-from utils.path_loader import PathLoader
 from features import FeatureDetector
-
+from utils.utils import hom_inv
+from params import KITTIParams
 
 # Note that order is scale rotate translate
 # When composing matrices this means T * R * S
@@ -28,68 +26,66 @@ def twoDtwoD(
     max_depth_distance: float,
     feature_detector: FeatureDetector = FeatureDetector.KLT,
 ):
+    # convert img to grayscale
     img_i = cv.imread(state_i.img_path, cv.IMREAD_GRAYSCALE)
     img_j = cv.imread(state_j.img_path, cv.IMREAD_GRAYSCALE)
-    state_i.features = detect_features(img_i)
-    pts_i = state_i.features.get_positions()
 
     if feature_detector == FeatureDetector.KLT:
+        # Extract feature (SIFT) in image i and tracked them to image
+        # j using KLT
+        state_i.features = detect_features(img_i)
+        pts_i = state_i.features.get_positions()
+        
         # perform klt
         pts_j, mask = matching_klt(img_paths, pts_i, lk_params)
+        
         # select only good keypoints
         pos_i = pts_i[mask, :]
         pos_j = pts_j[mask, :]
     else:
+        # Extract features in both image i and image j and match them using KNN
+        state_i.features = detect_features(img_i)
         state_j.features = detect_features(img_j)
-        mf_i, mf_j, _ = match_features(state_i.features, state_j.features, threshold=sift_params.threshold)
+
+        # matche SIFT features and returned best matches
+        mf_i, mf_j = match_features(state_i.features, state_j.features, threshold=0.8)
         state_i.features = mf_i
         state_j.features = mf_j
 
+        # get the position in pixels of each feature
         pos_i = mf_i.get_positions()
         pos_j = mf_j.get_positions()
 
+    # Calculate the Fundamental matrix using 8 point algorithm with RANSAC
     F, mask = geom.calc_fundamental_mat(pos_i, pos_j, *ransac_params)
-    mask = mask.squeeze().astype(bool)
-    pos_i = pos_i[mask, :]
-    pos_j = pos_j[mask, :]
+    
+    ## Select only inliers points
+    inliers = mask.ravel() == 1
+    pos_i = pos_i[inliers, :]
+    pos_j = pos_j[inliers, :]
 
+    # get essential matrix
     E = geom.calc_essential_mat_from_fundamental_mat(F, K)
+
+    # Convert keypoints to homogenous coordinates
     p_i = np.hstack([pos_i, np.ones((pos_i.shape[0], 1))])
     p_j = np.hstack([pos_j, np.ones((pos_j.shape[0], 1))])
 
+    # Decompose the essential matrix into R and T
     R, T = decomposeEssentialMatrix(E)
-    # Rotate -> Translate order
-    R_cami_to_camj, T_cami_to_camj = disambiguateRelativePose(R, T, p_i.T, p_j.T, K, K)
+    
+    # Disambiguate between different translations and rotations, where the solutions is the one with the 
+    # most points in front of both camera
+    T_cami_to_camj, P_cami, mask_reconstruction = disambiguateRelativePose(R, T, p_i.T, p_j.T, K, K)
+    
+    # use only feasible keypoints
+    p_i = p_i[mask_reconstruction]
+    p_j = p_j[mask_reconstruction]
 
-    M_cami_to_camj = np.eye(4)
-    M_cami_to_camj[:3, :] = np.c_[R_cami_to_camj, T_cami_to_camj]
+    T_camj_to_world = hom_inv(T_cami_to_camj) @ state_i.cam_to_world
+    P_world = (state_i.cam_to_world @ P_cami.T).T
 
-    M_camj_to_cami = np.linalg.inv(M_cami_to_camj)
-    M_cami_to_world = state_i.cam_to_world
-    M_camj_to_world = M_cami_to_world @ M_camj_to_cami
-
-    # P_cami = linearTriangulation(p_i, p_j, K @ np.eye(3, 4), K @ M_cami_to_camj[0:3, :])
-    # opencv triangulation
-    # epects [2, N] and [3, N] arrays (!)
-    P_cami = cv.triangulatePoints(
-        K @ np.eye(3, 4), K @ M_cami_to_camj[0:3, :], p_i[:, :2].T, p_j[:, :2].T
-    )
-    print(f"{P_cami.shape} P_cami shape")
-    P_cami /= P_cami[3, :]
-    P_cami = P_cami.T
-
-    # filer points behind camera and far away
-    mask = np.logical_and(
-            P_cami[:, 2] > 0, np.abs(np.linalg.norm(P_cami, axis=1)) < max_depth_distance
-    )
-    P_cami = P_cami[mask, :]
-    print(f"{p_j.shape} p_j shape")
-    p_i = p_i[mask, :]
-    p_j = p_j[mask, :]
-
-    P_world = (M_cami_to_world @ P_cami.T).T
-
-    return M_camj_to_world, P_world[:, :3], p_j[:, :2]
+    return T_camj_to_world, P_world[:, :3], p_j[:, :2]
 
 def calculate_relative_pose(points_i, points_j, K):
     F, mask_f = geom.calc_fundamental_mat(points_i, points_j)
@@ -151,7 +147,7 @@ class DataSetEnum(Enum):
 from utils.dataloader import DataLoader, Dataset
 if __name__ == "__main__":
       # select dataset
-    dataset = Dataset.KITTI
+    dataset = Dataset.PARKING
     
     steps = 20
     stride = 4

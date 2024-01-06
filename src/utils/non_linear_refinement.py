@@ -5,14 +5,12 @@ from utils.utils import HomogMatrix2twist, twist2HomogMatrix
 import matplotlib.pyplot as plt
 from scipy.special import huber
 
-def refine_camera_pose(keypoints: np.ndarray, landmarks: np.ndarray, C_guess, K, k_huber: float = 2, plot_debug: bool = False):
+def refine_camera_pose(keypoints: np.ndarray, landmarks: np.ndarray, C_guess, K, plot_debug: bool = False):
     P = keypoints.T
     X = landmarks.T
 
-    R_C_W_guess = C_guess[:3, :3]
-    t_C_W_guess = C_guess[:3, -1].reshape(-1, 1)
     # Initial guess for optimization solution
-    x_init = HomogMatrix2twist(np.vstack([np.hstack([R_C_W_guess, t_C_W_guess]), [0, 0, 0, 1]]))
+    x_init = HomogMatrix2twist(C_guess)
 
     # Define objective function
     def error_terms(x):
@@ -23,12 +21,12 @@ def refine_camera_pose(keypoints: np.ndarray, landmarks: np.ndarray, C_guess, K,
         T_C_W = twist2HomogMatrix(x)
 
         # Perform projection of 3D landmarks to camera frame
-        M_C_W = np.dot(K, T_C_W[:3, :])
-        p_projected_hom = np.dot(M_C_W, np.vstack([X, np.ones((1, X.shape[1]))]))
+        M_C_W = K @ T_C_W[:3, :]
+        p_projected_hom = M_C_W @ np.vstack([X, np.ones((1, X.shape[1]))])
         p_projected = p_projected_hom[:2, :] / p_projected_hom[2, :]
 
         # Compute reprojection error
-        error = huber(k_huber, P - p_projected)
+        error = P - p_projected
 
         if plot_debug:
             plt.clf()
@@ -42,19 +40,10 @@ def refine_camera_pose(keypoints: np.ndarray, landmarks: np.ndarray, C_guess, K,
         return error.flatten()
 
     # Perform optimization
-    options = {'max_nfev': 20, 'verbose': 2}
+    options = {'max_nfev': 10, 'verbose': 2, 'loss': 'huber'}
     result = least_squares(error_terms, x_init, **options)
 
     # Convert pose from twist to homogeneous matrices
     T_C_W_optim = twist2HomogMatrix(result.x)
-    R_C_W_optim = T_C_W_optim[:3, :3]
-    t_C_W_optim = T_C_W_optim[:3, -1].reshape(-1, 1)
-    T_W_C_optim = np.hstack([
-        R_C_W_optim.T,
-        -R_C_W_optim.T @ t_C_W_optim
-    ])
-    T_W_C_optim = np.vstack([
-        T_W_C_optim,
-        [0, 0, 0, 1]
-    ])
-    return T_W_C_optim
+
+    return T_C_W_optim
