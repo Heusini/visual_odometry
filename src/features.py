@@ -72,8 +72,7 @@ def match_features(
         if m.distance < threshold * n.distance:
             matches_filtered.append(m)
 
-    print(len(matches_filtered))
-    mask = np.asarray([m.distance < threshold * n.distance for m, n in matches])
+    print(f"#SIFT Matches filtered: {len(matches_filtered)}")
 
     matching_kps_i = [feature_set_i.keypoints[m.queryIdx] for m in matches_filtered]
     matching_kps_j = [feature_set_j.keypoints[m.trainIdx] for m in matches_filtered]
@@ -89,7 +88,7 @@ def match_features(
     matching_features_i = Features(matching_kps_i, matching_des_i)
     matching_features_j = Features(matching_kps_j, matching_des_j)
 
-    return matching_features_i, matching_features_j, mask
+    return matching_features_i, matching_features_j
 
 
 if __name__ == "__main__":
