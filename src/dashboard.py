@@ -36,13 +36,19 @@ class Dashboard:
 
         return [x_min, x_max], [y_min, y_max]
 
+    def update_axis_description(self, ax_num, title, xlabel, ylabel):
+        self.fig_axes[ax_num].set_title(title)
+        self.fig_axes[ax_num].set_xlabel(xlabel)
+        self.fig_axes[ax_num].set_ylabel(ylabel)
 
-    def update_axis(self, ax_num, points, color='b', size=20):
-        self.fig_axes[ax_num].scatter(points[0], points[1], s=size, c=color)
+    def update_axis(self, ax_num, points, color='b', size=20, label=None):
+        self.fig_axes[ax_num].scatter(points[0], points[1], s=size, c=color, label=label)
+        if label is not None:
+            self.fig_axes[ax_num].legend()
 
-    def update_axis_with_clear(self, ax_num, points, color='b', size=20):
+    def update_axis_with_clear(self, ax_num, points, color='b', size=20, label=None):
         self.fig_axes[ax_num].clear()
-        self.update_axis(ax_num, points, color, size)
+        self.update_axis(ax_num, points, color, size, label)
 
     def update_image(self, ax_num, img, points_2d, colors: List[List[int]]):
         colors = colors
@@ -74,16 +80,25 @@ class Dashboard:
     def clear_axis(self, ax_num):
         self.fig_axes[ax_num].clear()
 
+    def update_axis_line(self, ax_num, points, color='b', label=None):
+        self.fig_axes[ax_num].plot(points[:,0], points[:,1], c=color, label=label)
+        if label is not None:
+            self.fig_axes[ax_num].legend()
+
 def create_default_dashboard():
     fig = plt.figure(figsize=(15, 10), layout="constrained")
     gs = fig.add_gridspec(2, 3)
 
-    ax1 = fig.add_subplot(gs[0, :])
+    ax1 = fig.add_subplot(gs[0, :2])
     ax2 = fig.add_subplot(gs[1, 0])
     ax3 = fig.add_subplot(gs[1, 1])
     ax4 = fig.add_subplot(gs[1, 2])
+    ax5 = fig.add_subplot(gs[0, 2:])
 
-    fig_axes= [ax1, ax2, ax3, ax4]
+    ax1.set_aspect("equal", adjustable="box")
+    ax2.set_aspect("equal", adjustable="box")
+
+    fig_axes= [ax1, ax2, ax3, ax4, ax5]
 
     return fig, fig_axes
 
