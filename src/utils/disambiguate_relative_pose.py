@@ -1,5 +1,6 @@
 import numpy as np
 import cv2 as cv
+from params import get_params
 
 def disambiguateRelativePose(Rots, u3, points0_h, points1_h, K1, K2):
     """DISAMBIGUATERELATIVEPOSE- finds the correct relative camera pose (among four
@@ -24,7 +25,7 @@ def disambiguateRelativePose(Rots, u3, points0_h, points1_h, K1, K2):
       to camera 2.
     """
     pass
-
+    params = get_params()
     # Projection matrix of camera 1
     M1 = K1 @ np.eye(3, 4)
 
@@ -61,9 +62,8 @@ def disambiguateRelativePose(Rots, u3, points0_h, points1_h, K1, K2):
     T_cami_camj[:3, 3] = T.ravel()
 
     # Remove points behind the camera and far away
-    max_point_distance = 100
+    max_point_distance = params.INIT_PARAMS.MAX_DEPTH_DISTANCE
     min_depth_distance = min(0, T_cami_camj[2, 2])
-    min_depth_distance = 0
     close_points = np.linalg.norm(P_cami[:3, :], axis=0) <= max_point_distance
     not_behind_camera = P_cami[2, :] > min_depth_distance
 

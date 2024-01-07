@@ -6,7 +6,7 @@ import numpy as np
 from cv2 import calcOpticalFlowPyrLK
 from klt import klt
 import matplotlib.pyplot as plt
-
+from params import get_params
 class FeatureDetector(Enum):
     KLT = 0
     SIFT = 1
@@ -31,11 +31,12 @@ class Features(NamedTuple):
 
 
 def detect_features(img) -> Features:
-    sift = cv.SIFT_create(nfeatures=0,
-                          nOctaveLayers=4,
-                          contrastThreshold=0.03,
-                          edgeThreshold=10,
-                          sigma=1.6)
+    params = get_params()
+    sift = cv.SIFT_create(nfeatures=params.SIFT_PARAMS.NFEATURES,
+                          nOctaveLayers=params.SIFT_PARAMS.NOCTAVELAYERS,
+                          contrastThreshold=params.SIFT_PARAMS.CONTRASTTHRESHOLD,
+                          edgeThreshold=params.SIFT_PARAMS.EDGETHRESHOLD,
+                          sigma=params.SIFT_PARAMS.SIGMA)
     kp, des = sift.detectAndCompute(img, None)
     return Features(kp, des)
 
@@ -52,24 +53,38 @@ def detect_features_shi_tomasi(img, max_num: int, threshold: float, non_maxima_s
 
     return corners
 
-def matching_klt(img_paths, features_i, klt_params):
+def matching_klt(img_paths, features_i):
+    params = get_params()
     features_j = features_i
     for i in range(0, len(img_paths)-1):
         img_i = cv.imread(img_paths[i], cv.IMREAD_GRAYSCALE)
         img_j = cv.imread(img_paths[i + 1], cv.IMREAD_GRAYSCALE)
-        features_j, mask_good = klt(features_j, img_i, img_j, klt_params)
+        
+        features_j, mask_good = klt(
+            features_j, 
+            img_i, 
+            img_j, 
+            {
+                'winSize': params.KLT_PARMS.WIN_SIZE,
+                'maxLevel': params.KLT_PARMS.MAX_LEVEL,
+                'criteria': params.KLT_PARMS.CRITERIA, 
+                'minEigThreshold': params.KLT_PARMS.MIN_EIG_THRESHOLD
+            }
+        )
     
     return features_j, mask_good
 
 def match_features(
-    feature_set_i: Features, feature_set_j: Features, threshold=0.6
+    feature_set_i: Features, feature_set_j: Features
 ) -> (Features, Features, np.ndarray):
+    params = get_params()
+
     bf = cv.BFMatcher()
     matches = bf.knnMatch(feature_set_i.descriptors, feature_set_j.descriptors, k=2)
 
     matches_filtered = []
     for m, n in matches:
-        if m.distance < threshold * n.distance:
+        if m.distance < params.SIFT_PARAMS.MATCHING_THRESHOLD * n.distance:
             matches_filtered.append(m)
 
     print(f"#SIFT Matches filtered: {len(matches_filtered)}")

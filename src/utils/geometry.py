@@ -2,7 +2,7 @@ from typing import Optional
 
 import cv2
 import numpy as np
-
+from params import get_params
 
 class Transform3D:
     def __init__(self, R: Optional[np.ndarray] = None, t: Optional[np.ndarray] = None):
@@ -34,8 +34,9 @@ class Transform3D:
         return self.get_R() @ self.get_t()
 
 
-def calc_fundamental_mat(points1, points2, reprojection_error=1, confidence=0.9999, num_iterations=50000):
-    F, mask = cv2.findFundamentalMat(points1, points2, cv2.RANSAC, reprojection_error, confidence, num_iterations)
+def calc_fundamental_mat(points1, points2):
+    params = get_params()
+    F, mask = cv2.findFundamentalMat(points1, points2, cv2.RANSAC, params.INIT_PARAMS.RANSAC_PARAMS_F.THRESHOLD, params.INIT_PARAMS.RANSAC_PARAMS_F.CONFIDENCE, params.INIT_PARAMS.RANSAC_PARAMS_F.NUM_ITERATIONS)
     return F, mask
 
 

@@ -1,24 +1,24 @@
 ### PARKING ###
 PARKING:
   klt_params:
-    winSize: [21, 21]
-    maxLevel: 8
+    winSize: [31, 31]
+    maxLevel: 3
     criteria:
       - TERM_CRITERIA_EPS_OR_COUNT
-      - 10
-      - 0.001
+      - 30
+      - 6
     minEigThreshold: 0.01
 
   sift_params:
     threshold: 0.8
 
   init_params:
-    baseline_frame_indices: [0, 15] # frames used to init pointcloud
-    matcher: 0 # KLT = 0, SIFT = 1
+    baseline_frame_indices: [0, 13] # frames used to init pointcloud
+    matcher: 1 # KLT = 0, SIFT = 1
     ransac_params_F:
       threshold: 0.1
-      confidence: 0.9999
-      num_iterations: 100
+      confidence: 0.999
+      num_iterations: 10000
     max_depth_distance: 50
   
   continuous_params:
@@ -27,10 +27,10 @@ PARKING:
     min_track_length: 6 
     pnp_ransac_params:
       threshold: 1
-      confidence: 0.9999
-      num_iterations: 100
+      confidence: 0.99
+      num_iterations: 10000
     same_keypoints_threshold: 2
-    max_depth_distance: 100
+    max_depth_distance: 50
 
 ### KITTI ###
 KITTI:
