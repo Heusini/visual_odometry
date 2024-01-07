@@ -238,7 +238,7 @@ if __name__ == "__main__":
     # update plots automatically or by clicking
     AUTO = True
     # select dataset
-    dataset = Dataset.MALAGA
+    dataset = Dataset.PARKING
     which_dataset(dataset.value)
     params = get_params()
     # load data
@@ -364,6 +364,7 @@ if __name__ == "__main__":
 
         if t % 30 == 0:
             dashboard.clear_axis(2)
+            dashboard.update_axis_description(2, "all landmarks", "x", "z")
         
         img = img_j
 
@@ -382,7 +383,7 @@ if __name__ == "__main__":
         dashboard.update_axis_description(1, "landmarks", "x", "z")
         if landmarks.shape[0] > 0:
             landmarks_new_camera_space = np.hstack([landmarks, np.ones((landmarks.shape[0], 1))])
-            landmarks_new_camera_space = (np.linalg.inv(state_j.cam_to_world) @ landmarks_camera_space.T ).T
+            landmarks_new_camera_space = (np.linalg.inv(state_j.cam_to_world) @ landmarks_new_camera_space.T ).T
 
             dashboard.update_axis(1, [landmarks_new_camera_space[:, 0], landmarks_new_camera_space[:, 2]], color='green', label="new landmarks")
             limit_points.append([landmarks_new_camera_space[:, 0], landmarks_new_camera_space[:, 2]])
@@ -404,14 +405,9 @@ if __name__ == "__main__":
         dashboard.update_axis(2, [state_j.landmarks[:, 0], state_j.landmarks[:, 2]], color='black', label=label)
         dashboard.update_axis(2, [state_j.cam_to_world[0, 3], state_j.cam_to_world[2, 3]], color='red', label=cam_label)
 
-
-        ####
         dashboard.update_axis(3, [cam_hist[ref_frame:t+1, 0], cam_hist[ref_frame:t+1, 2]], color='black', label=cam_label)
         limits = dashboard.calculate_limits_from_points([[cam_hist[ref_frame:t+1, 0], cam_hist[ref_frame:t+1, 2]]])
         dashboard.set_limits(3, limits[0], limits[1])
-
-        state_j.keypoints = np.concatenate([state_j.keypoints, keypoints], axis=0)
-        state_j.landmarks = np.concatenate([state_j.landmarks, landmarks], axis=0)
 
         label = "landmarks over time" if t == 0 else None
 
@@ -421,6 +417,14 @@ if __name__ == "__main__":
         dashboard.update_axis_line(4, np.asarray(landmarks_history_count), color='red', label=label)
         max_landmarks_plot = max_landmarks_plot if state_j.landmarks.shape[0] < max_landmarks_plot else state_j.landmarks.shape[0]
         dashboard.set_limits(4, [0, t+5], [0, max_landmarks_plot+20])
+
+
+
+
+        # update state
+        state_j.keypoints = np.concatenate([state_j.keypoints, keypoints], axis=0)
+        state_j.landmarks = np.concatenate([state_j.landmarks, landmarks], axis=0)
+
 
 
         plt.draw()
