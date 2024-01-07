@@ -8,6 +8,7 @@ if __name__ == '__main__':
     parser.add_argument('--kitty', '-k',  help='the kitty dataset', action='store_true')
     parser.add_argument('--malaga', '-m', help='the malaga dataset', action='store_true')
     parser.add_argument('--plot', '-o', help='plot the results', action='store_true')
+    parser.add_argument('--plot2', '-o2', help='plot ground truth vs vo pipeline', action='store_true')
     args = parser.parse_args()
 
     dataset = Dataset.KITTI
@@ -18,5 +19,5 @@ if __name__ == '__main__':
     elif args.malaga:
         dataset = Dataset.MALAGA
 
-    run_tracking(dataset, args.plot)
+    run_tracking(dataset, plotting=args.plot, plotting2=args.plot2)
 
