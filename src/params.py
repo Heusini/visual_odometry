@@ -62,11 +62,11 @@ class MALAGAParams:
         class RANSAC_PARAMS_F:
             THRESHOLD = 0.1
             CONFIDENCE = 0.9999
-            NUM_ITERATIONS = 100
+            NUM_ITERATIONS = 50
 
         BASELINE_FRAME_INDICES = [0, 5]  # Frames used to init pointcloud
         MATCHER = FeatureDetector.SIFT
-        MAX_DEPTH_DISTANCE = 10000
+        MAX_DEPTH_DISTANCE = 50
 
     class CONT_PARAMS:
         class PNP_RANSAC_PARAMS:
