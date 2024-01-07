@@ -1,10 +1,29 @@
 ## Visual Odometry Pipeline
 
 
+
+
 ### Conda environment
 Install [conda](https://docs.conda.io/projects/miniconda/en/latest/) and than run this:
 ```sh
 conda env create --file vision.yml
+```
+
+### Run the Pipeline
+```sh
+# usage: main.py [-h] [--parking] [--kitty] [--malaga] [--plot] [--plot2]
+
+# optional arguments:
+#   -h, --help     show this help message and exit
+#   --parking, -p  the parking dataset
+#   --kitty, -k    the kitty dataset
+#   --malaga, -m   the malaga dataset
+#   --plot, -o     plot the results
+#   --plot2, -o2   plot ground truth vs vo pipeline
+
+# Example for plotting and selecting the parking dataset
+# plot2 plots the groundtruth and vo pipeline output (only the camera poses (only kitti and parking))
+python src/main.py -o -p
 ```
 
 ### Download datasets
