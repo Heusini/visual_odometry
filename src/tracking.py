@@ -9,6 +9,7 @@ from features import detect_features
 from klt import klt
 from state import FrameState
 from utils.utils import hom_inv
+from dashboard import Dashboard
 
 class Track:
     start_t: int
@@ -256,6 +257,10 @@ if __name__ == "__main__":
     ref_frame = params.INIT_PARAMS.BASELINE_FRAME_INDICES[0]
     start_frame = params.INIT_PARAMS.BASELINE_FRAME_INDICES[1]
 
+    max_landmarks_plot = 0
+    landmarks_history_count = []
+
+
     # Initialize 3D pointcloud
     M_cam_to_world, landmarks, keypoints_i, keypoints_j = twoDtwoD(
         states[ref_frame],
@@ -283,18 +288,15 @@ if __name__ == "__main__":
     )
 
     plt.ion()
-    fig = plt.figure(figsize=(15, 10))
-    gs = fig.add_gridspec(2, 3)
-    ax0 = fig.add_subplot(gs[0, :])
-    ax1 = fig.add_subplot(gs[1, 0])
-    ax2 = fig.add_subplot(gs[1, 1])
-    ax3 = fig.add_subplot(gs[1, 2])
+    dashboard = Dashboard()
     plt.show()
+    plt.pause(0.1)
 
     cam_hist = np.zeros((len(states), 3))
-    cam_hist[ref_frame, :] = states[ref_frame].cam_to_world[:3, 3]
-    cam_hist[start_frame, :] = states[start_frame].cam_to_world[:3, 3]
     track_manager.prev_keyframe = states[start_frame]
+    cam_hist[start_frame, :] = states[start_frame].cam_to_world[:3, 3]
+    cam_hist[ref_frame, :] = states[ref_frame].cam_to_world[:3, 3]
+    dashboard.update_axis_with_clear(3, [cam_hist[:, 0], cam_hist[:, 2]], "black")
 
     for t in range(ref_frame, len(states)):
         state_i = states[t]
@@ -330,6 +332,18 @@ if __name__ == "__main__":
         state_j.landmarks = state_j.landmarks[ransac_mask, :]
         state_j.keypoints = state_j.keypoints[ransac_mask, :]
 
+        P_world = np.hstack([state_j.landmarks, np.ones((state_j.landmarks.shape[0], 1))])
+
+        P_camj = (np.linalg.inv(state_j.cam_to_world) @ P_world.T).T
+
+        # filter points behind camera and far away
+        mask_distance = np.logical_and(
+            P_camj[:, 2] > 0, np.abs(np.linalg.norm(P_camj, axis=1)) < 60
+        )
+        state_j.landmarks = state_j.landmarks[mask_distance, :]
+        state_j.keypoints = state_j.keypoints[mask_distance, :]
+
+
         track_manager.update(
             t,
             img_i=img_i,
@@ -347,152 +361,74 @@ if __name__ == "__main__":
         
         print(f"Found {landmarks.shape} new landmarks")
 
-        ax0.clear()
-        ax1.clear()
 
         if t % 30 == 0:
-            ax2.clear()
+            dashboard.clear_axis(2)
         
-        # plot image using cv
-        img = cv.cvtColor(img_j, cv.COLOR_BGR2RGB)
+        img = img_j
 
-        # plot keypoint tracks using cv2
-        # n_tracks = len(track_manager.active_tracks)
-        # for track_index, track in enumerate(track_manager.active_tracks.values()):
-        #     start = track.keypoints_start.astype(int)
-        #     end = track.keypoints_end.astype(int)
-
-        #     for i in range(track.size()):
-        #         # above line plot code but add to ax[0]
-        #         cv.line(
-        #             img,
-        #             (start[i, 0], start[i, 1]),
-        #             (end[i, 0], end[i, 1]),
-        #             color=(255, 0, 0),
-        #             thickness=1,
-        #         )
-
-        # plot keypoints using cv2
-        # for i in range(keypoints.shape[0]):
-        #     cv.circle(
-        #         img,
-        #         (int(keypoints[i, 0]), int(keypoints[i, 1])),
-        #         radius=3,
-        #         color=(0, 0, 255),
-        #         thickness=-1,
-        #     )
-
-        # plot existing keypoints using cv2
-        for i in range(state_j.keypoints.shape[0]):
-            cv.circle(
-                img,
-                (
-                    int(state_j.keypoints[i, 0]),
-                    int(state_j.keypoints[i, 1]),
-                ),
-                radius=3,
-                color=(0, 255, 0),
-                thickness=-1,
-            )
-
-        ax0.imshow(img)
+        print(f"{state_j.keypoints.shape} keypoints shape")
+        colors = [(0, 255, 0), (0, 0, 255), (255, 0, 0)]
+        dashboard.update_image(0, img, [state_j.keypoints], colors=colors)
 
         landmarks_camera_space = np.hstack([state_j.landmarks, np.ones((state_j.landmarks.shape[0], 1))])
         landmarks_camera_space = (np.linalg.inv(state_j.cam_to_world) @ landmarks_camera_space.T ).T
-        # ax1.scatter(
-        #     landmarks_camera_space[:, 0],
-        #     landmarks_camera_space[:, 2],
-        #     s=20,
-        #     c="green",
-        #     label="previous landmarks",
-        # )
-    
+
+        limit_points = []
+        limit_points.append([landmarks_camera_space[:, 0], landmarks_camera_space[:, 2]])
+
+        
+        dashboard.update_axis_with_clear(1, [landmarks_camera_space[:, 0], landmarks_camera_space[:, 2]], color='orange', label="previous_landmarks")
+        dashboard.update_axis_description(1, "landmarks", "x", "z")
         if landmarks.shape[0] > 0:
-            landmarks_camera_space = np.hstack([landmarks, np.ones((landmarks.shape[0], 1))])
-            landmarks_camera_space = (np.linalg.inv(state_j.cam_to_world) @ landmarks_camera_space.T ).T
+            landmarks_new_camera_space = np.hstack([landmarks, np.ones((landmarks.shape[0], 1))])
+            landmarks_new_camera_space = (np.linalg.inv(state_j.cam_to_world) @ landmarks_camera_space.T ).T
 
-            # ax1.scatter(
-            #     landmarks_camera_space[:, 0],
-            #     landmarks_camera_space[:, 2],
-            #     s=20, 
-            #     c="blue", 
-            #     label="new landmarks"
-            # )
+            dashboard.update_axis(1, [landmarks_new_camera_space[:, 0], landmarks_new_camera_space[:, 2]], color='green', label="new landmarks")
+            limit_points.append([landmarks_new_camera_space[:, 0], landmarks_new_camera_space[:, 2]])
 
-        ax1.set_xlim(-20, 20)
-        ax1.set_ylim(-2, 70)
+        limit_points.append([[0], [0]])
+        # calculate limits
+        limits = dashboard.calculate_limits_from_points(limit_points)
+        # set limits
+        dashboard.set_limits(1, limits[0], limits[1])
+        dashboard.update_axis(1, [[0],[0]], color='red', label="camera position")
 
         x_cam = np.array([[0.2, 0, 0, 1], [-0.2, 0, 0, 1]])
-        print(x_cam.shape)
         T_cam = (state_j.cam_to_world @ x_cam.T).T
-    
-        ax1.scatter(
-            0,
-            0,
-            s=20,
-            c="red",
-            label="camera position",
-        )
-        ax1.legend()
-
-        ax1.set_title("landmarks in camera frame")
-        ax1.set_xlabel("x")
-        ax1.set_ylabel("z")
-        #ax1.set_aspect("equal", adjustable="box")
-
+        
         cam_hist[t+1, :] = (state_j.cam_to_world[:3, 3])
 
-        # ax2.scatter(
-        #     landmarks[:, 0],
-        #     landmarks[:, 2],
-        #     s=1,
-        #     c="black",
-        #     label="all landmarks",
-        #     alpha=0.01,
-        # )
+        label = "all landmarks" if t == 0 else None
+        cam_label = "camera position" if t == 0 else None
+        dashboard.update_axis(2, [state_j.landmarks[:, 0], state_j.landmarks[:, 2]], color='black', label=label)
+        dashboard.update_axis(2, [state_j.cam_to_world[0, 3], state_j.cam_to_world[2, 3]], color='red', label=cam_label)
 
-        # ax2.scatter(
-        #     state_j.cam_to_world[0, 3],
-        #     state_j.cam_to_world[2, 3],
-        #     s=3,
-        #     c="red",
-        #     label="camera position",
-        #     # set to cross
-        #     marker="x",
 
-        # )
-        # add legend
-        if t == start_frame:
-            ax2.legend()
-            ax2.set_title("History of all landmarks in world frame")
-            ax2.set_xlabel("x")
-            ax2.set_ylabel("z")
-            
+        ####
+        dashboard.update_axis(3, [cam_hist[ref_frame:t+1, 0], cam_hist[ref_frame:t+1, 2]], color='black', label=cam_label)
+        limits = dashboard.calculate_limits_from_points([[cam_hist[ref_frame:t+1, 0], cam_hist[ref_frame:t+1, 2]]])
+        dashboard.set_limits(3, limits[0], limits[1])
 
-        #ax2.set_aspect("equal", adjustable="box")
-        ax3.clear()
-        ax3.scatter(
-            cam_hist[ref_frame:t+1, 0],
-            cam_hist[ref_frame:t+1, 2],
-            s=1,
-            c="black",
-            label="camera position",
-            alpha=1,
-        )
-        min_x = np.min(cam_hist[ref_frame:t+1, 0])
-        max_x = np.max(cam_hist[ref_frame:t+1, 0])
-
-        min_z = np.min(cam_hist[ref_frame:t+1, 2])
-        max_z = np.max(cam_hist[ref_frame:t+1, 2])
-
-        margin = 2
-        ax3.set_xlim(xmin=min(-2, min_x - margin), xmax=max(2, max_x + margin))
-        ax3.set_ylim(ymin=min(-2, min_z - margin), ymax=max(2, max_z + margin))
         state_j.keypoints = np.concatenate([state_j.keypoints, keypoints], axis=0)
         state_j.landmarks = np.concatenate([state_j.landmarks, landmarks], axis=0)
+
+        label = "landmarks over time" if t == 0 else None
+
+        ### add history of landmark count
+        print(f"landmarks shape {state_j.landmarks.shape}")
+        landmarks_history_count.append([t, state_j.landmarks.shape[0]])
+        dashboard.update_axis_line(4, np.asarray(landmarks_history_count), color='red', label=label)
+        max_landmarks_plot = max_landmarks_plot if state_j.landmarks.shape[0] < max_landmarks_plot else state_j.landmarks.shape[0]
+        dashboard.set_limits(4, [0, t+5], [0, max_landmarks_plot+20])
+
 
         plt.draw()
         if AUTO:
             plt.pause(0.05)
         else:
             plt.waitforbuttonpress()
+
+        if t == 0:
+            dashboard.update_axis_description(2, "all landmarks", "x", "z")
+            dashboard.update_axis_description(3, "camera position over time", "x", "z")
