@@ -84,6 +84,10 @@ class DataLoader:
         method = f"_load_{self.dataset.name.lower()}_poses"
         getattr(self, method)(self.data_path)
 
+
+    def _load_malaga_ground_truth(self, path):
+        self.gt = None
+
     def _load_kitti_k(self):
         # Load KITTI specific 'k' data
         self.k = np.array(
@@ -205,6 +209,7 @@ class DataLoader:
             ],
             dtype=np.float32,
         )
+
 
     def _load_woko_poses(self, path):
         return None

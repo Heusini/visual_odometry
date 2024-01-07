@@ -16,6 +16,8 @@ from features import detect_features, FeatureDetector, match_features, matching_
 from twoDtwoD import twoDtwoD, initialize_camera_poses 
 from params import get_params, which_dataset
 
+
+
 class Track:
     start_t: int
     end_t: int
@@ -277,10 +279,11 @@ def compute_scale_factor(dists1, dists2):
 
 
 
-def run_tracking(dataset=Dataset.PARKING, plotting=False, auto=True):
+def run_tracking(dataset=Dataset.PARKING, plotting=False, plotting2=False, auto=True):
     # update plots automatically or by clicking
     AUTO = auto
     PLOTTING = plotting
+    PLOTTING2 = plotting2
     # select dataset
     which_dataset(dataset.value)
     params = get_params()
@@ -339,6 +342,19 @@ def run_tracking(dataset=Dataset.PARKING, plotting=False, auto=True):
         cam_hist[start_frame, :] = states[start_frame].cam_to_world[:3, 3]
         cam_hist[ref_frame, :] = states[ref_frame].cam_to_world[:3, 3]
         dashboard.update_axis_with_clear(3, [cam_hist[:, 0], cam_hist[:, 2]], "black")
+    elif PLOTTING2 and (dataset == Dataset.PARKING or dataset == Dataset.KITTI):
+        plt.ion()
+        fig = plt.figure()
+        plt.show()
+        plt.pause(0.1)
+        cam_hist = np.zeros((len(states), 3))
+        cam_hist[start_frame, :] = states[start_frame].cam_to_world[:3, 3]
+        cam_hist[ref_frame, :] = states[ref_frame].cam_to_world[:3, 3]
+        ground_truth = loader.poses
+        print(f"{ref_frame} ref_frame")
+        rescaled_ground_truth = np.zeros((len(states), 3))
+        print(f"rescaled_ground_truth: {len(rescaled_ground_truth)}")
+
 
     track_manager.prev_keyframe = states[start_frame]
 
@@ -470,8 +486,19 @@ def run_tracking(dataset=Dataset.PARKING, plotting=False, auto=True):
             if t == 0:
                 dashboard.update_axis_description(2, "all landmarks", "x", "z")
                 dashboard.update_axis_description(3, "camera position over time", "x", "z")
+        elif PLOTTING2 and (dataset == Dataset.KITTI or dataset == Dataset.PARKING) and t > 1:
+            cam_hist[t+1, :] = (state_j.cam_to_world[:3, 3])
+            vec_norm = np.linalg.norm(cam_hist[t+1,:] - cam_hist[t,:])
+            scale_factor = vec_norm / np.linalg.norm(ground_truth[t+1, :3, 3] - ground_truth[t, :3, 3])
 
 
+            rescaled_vec = scale_factor*(ground_truth[t+1, :3, 3] - ground_truth[t, :3, 3])
+            rescaled_ground_truth[t+1] = rescaled_vec + rescaled_ground_truth[t]
+            plt.plot(cam_hist[t, 0], cam_hist[t, 2],"x", color='blue')
+
+            plt.plot(rescaled_ground_truth[t][0], rescaled_ground_truth[t][2], "o", color="red")
+            plt.draw()
+            plt.pause(0.05)
 
 
         # update state
@@ -485,7 +512,7 @@ def run_tracking(dataset=Dataset.PARKING, plotting=False, auto=True):
         # state_j.landmarks = state_j.landmarks[indices, :]
 
 if __name__ == "__main__":
-    run_tracking(plotting=True)
+    run_tracking(dataset=Dataset.KITTI, plotting2=True)
 
 
 
