@@ -237,12 +237,12 @@ if __name__ == "__main__":
     # update plots automatically or by clicking
     AUTO = True
     # select dataset
-    dataset = Dataset.PARKING
+    dataset = Dataset.MALAGA
     which_dataset(dataset.value)
     params = get_params()
     # load data
     # if you remove steps then all the images are used
-    loader = DataLoader(dataset, start=0, stride=1, steps=float('inf'))
+    loader = DataLoader(dataset, start=600, stride=1, steps=float('inf'))
     print("Loading data...")
 
     config = loader.config
@@ -317,13 +317,6 @@ if __name__ == "__main__":
     # M_cam_to_world, landmarks, mask = initialize_camera_poses(pos_i, pos_j, K)
     # keypoints = pos_j[mask, :]
 
-    # bootstrap = BootstrapInitializer(
-    #         cv.imread(states[ref_frame].img_path, cv.IMREAD_GRAYSCALE), cv.imread(states[start_frame].img_path, cv.IMREAD_GRAYSCALE), K, max_point_dist=100)
-
-    # M_cam_to_world = hom_inv(bootstrap.T) @ states[ref_frame].cam_to_world
-    # landmarks = (states[ref_frame].cam_to_world @ bootstrap.point_cloud.T).T
-    # landmarks = landmarks[:, :3]
-    # keypoints = bootstrap.pts2[:, :2]
     print(f"Found {landmarks.shape} new landmarks")
     print(f"Found {keypoints.shape} new keypoints")
 
@@ -486,14 +479,14 @@ if __name__ == "__main__":
         #         )
 
         # plot keypoints using cv2
-        for i in range(keypoints.shape[0]):
-            cv.circle(
-                img,
-                (int(keypoints[i, 0]), int(keypoints[i, 1])),
-                radius=3,
-                color=(0, 0, 255),
-                thickness=-1,
-            )
+        # for i in range(keypoints.shape[0]):
+        #     cv.circle(
+        #         img,
+        #         (int(keypoints[i, 0]), int(keypoints[i, 1])),
+        #         radius=3,
+        #         color=(0, 0, 255),
+        #         thickness=-1,
+        #     )
 
         # plot existing keypoints using cv2
         for i in range(state_j.keypoints.shape[0]):
@@ -512,25 +505,25 @@ if __name__ == "__main__":
 
         landmarks_camera_space = np.hstack([state_j.landmarks, np.ones((state_j.landmarks.shape[0], 1))])
         landmarks_camera_space = (np.linalg.inv(state_j.cam_to_world) @ landmarks_camera_space.T ).T
-        ax1.scatter(
-            landmarks_camera_space[:, 0],
-            landmarks_camera_space[:, 2],
-            s=20,
-            c="green",
-            label="previous landmarks",
-        )
+        # ax1.scatter(
+        #     landmarks_camera_space[:, 0],
+        #     landmarks_camera_space[:, 2],
+        #     s=20,
+        #     c="green",
+        #     label="previous landmarks",
+        # )
     
         if landmarks.shape[0] > 0:
             landmarks_camera_space = np.hstack([landmarks, np.ones((landmarks.shape[0], 1))])
             landmarks_camera_space = (np.linalg.inv(state_j.cam_to_world) @ landmarks_camera_space.T ).T
 
-            ax1.scatter(
-                landmarks_camera_space[:, 0],
-                landmarks_camera_space[:, 2],
-                s=20, 
-                c="blue", 
-                label="new landmarks"
-            )
+            # ax1.scatter(
+            #     landmarks_camera_space[:, 0],
+            #     landmarks_camera_space[:, 2],
+            #     s=20, 
+            #     c="blue", 
+            #     label="new landmarks"
+            # )
 
         ax1.set_xlim(-20, 20)
         ax1.set_ylim(-2, 70)
@@ -555,25 +548,25 @@ if __name__ == "__main__":
 
         cam_hist[t, :] = (state_j.cam_to_world[:3, 3])
 
-        ax2.scatter(
-            landmarks[:, 0],
-            landmarks[:, 2],
-            s=1,
-            c="black",
-            label="all landmarks",
-            alpha=0.01,
-        )
+        # ax2.scatter(
+        #     landmarks[:, 0],
+        #     landmarks[:, 2],
+        #     s=1,
+        #     c="black",
+        #     label="all landmarks",
+        #     alpha=0.01,
+        # )
 
-        ax2.scatter(
-            state_j.cam_to_world[0, 3],
-            state_j.cam_to_world[2, 3],
-            s=3,
-            c="red",
-            label="camera position",
-            # set to cross
-            marker="x",
+        # ax2.scatter(
+        #     state_j.cam_to_world[0, 3],
+        #     state_j.cam_to_world[2, 3],
+        #     s=3,
+        #     c="red",
+        #     label="camera position",
+        #     # set to cross
+        #     marker="x",
 
-        )
+        # )
         # add legend
         if t == start_frame:
             ax2.legend()
@@ -606,6 +599,6 @@ if __name__ == "__main__":
 
         plt.draw()
         if AUTO:
-            plt.pause(0.1)
+            plt.pause(0.05)
         else:
             plt.waitforbuttonpress()

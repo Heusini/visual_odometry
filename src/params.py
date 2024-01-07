@@ -47,15 +47,15 @@ class MALAGAParams:
     class SIFT_PARAMS:
         MATCHING_THRESHOLD = 0.6
         NFEATURES = 0
-        NOCTAVELAYERS = 3
-        CONTRASTTHRESHOLD = 0.04
+        NOCTAVELAYERS = 4
+        CONTRASTTHRESHOLD = 0.02
         EDGETHRESHOLD = 10
-        SIGMA = 1.6
+        SIGMA = 1
 
     class KLT_PARMS:
-        WIN_SIZE = (21, 21)  # Typical default window size
+        WIN_SIZE = (31, 31)  # Typical default window size
         MAX_LEVEL = 8        # Default maximum pyramid level
-        CRITERIA = (cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_COUNT, 30, 0.001)  # Termination criteria
+        CRITERIA = (cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_COUNT, 30, 6)  # Termination criteria
         MIN_EIG_THRESHOLD = 0.01  # Minimum eigenvalue threshold
 
     class INIT_PARAMS:
@@ -64,7 +64,7 @@ class MALAGAParams:
             CONFIDENCE = 0.9999
             NUM_ITERATIONS = 100
 
-        BASELINE_FRAME_INDICES = [0, 4]  # Frames used to init pointcloud
+        BASELINE_FRAME_INDICES = [0, 5]  # Frames used to init pointcloud
         MATCHER = FeatureDetector.SIFT
         MAX_DEPTH_DISTANCE = 10000
 
@@ -78,8 +78,8 @@ class MALAGAParams:
         MIN_TRACK_LENGTH = 6
         SAME_KEYPOINTS_THRESHOLD = 2
         MAX_DEPTH_DISTANCE = 50
-        BASELINE_SIGMA = 0.15
-        MIN_NUM_LANDMARKS = 2000
+        BASELINE_SIGMA = 0.1
+        MIN_NUM_LANDMARKS = float('inf')
     
 class PARKINGParams:
     class SIFT_PARAMS:
