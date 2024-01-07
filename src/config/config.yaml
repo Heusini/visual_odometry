@@ -24,7 +24,7 @@ PARKING:
   continuous_params:
     angle_threshold: 0.0436 # calculate one that is reasonable; this angle is an indirect measure of the baseline
     max_track_length: 10 # for memory efficiency
-    min_track_length: 6 
+    min_track_length: 3
     pnp_ransac_params:
       threshold: 1
       confidence: 0.99
@@ -96,5 +96,5 @@ MALAGA:
       threshold: 1
       confidence: 0.9999
       num_iterations: 100
-    same_keypoints_threshold: 2
+    same_keypoints_threshold: 1
     max_depth_distance: 50

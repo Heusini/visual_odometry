@@ -2,12 +2,15 @@ import numpy as np
 import scipy
 from scipy.optimize import least_squares
 import matplotlib.pyplot as plt
+from typing import List
 
 from utils.utils import twist2HomogMatrix
 from utils.project_points import projectPoints
+from state import FrameState
 
 
-def runBA(hidden_state, observations, K):
+
+def runBA(states : List[FrameState], K: np.ndarray) -> List[FrameState]:
     """
     Update the hidden state, encoded as explained in the problem statement, with 20 bundle adjustment iterations.
     """

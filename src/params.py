@@ -108,7 +108,7 @@ class PARKINGParams:
 
     class CONT_PARAMS:
         class PNP_RANSAC_PARAMS:
-            THRESHOLD = 1
+            THRESHOLD = 5
             CONFIDENCE = 0.9999
             NUM_ITERATIONS = 10000
 

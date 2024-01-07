@@ -155,6 +155,17 @@ class TrackManager:
             ).T
             P_world = P_world / np.reshape(P_world[:, 3], (-1, 1))
 
+            M_cami_to_camj = np.linalg.inv(state_j.cam_to_world) @ state_i.cam_to_world
+
+            P_camj = (np.linalg.inv(state_j.cam_to_world) @ P_world.T).T
+            P_cami = (np.linalg.inv(state_i.cam_to_world) @ P_world.T).T
+            P_camj_proj = (M_cami_to_camj @ P_cami.T).T
+            error = np.linalg.norm(P_camj[:, :2] - P_camj_proj[:, :2], axis=1)
+            # remove points that do not correspond to motion of the camera
+            mask_motion = error < np.percentile(error, 80)
+            # P_world = P_world[mask_motion, :]
+            # kp_j = kp_j[mask_motion, :]
+
             P_camj = (np.linalg.inv(state_j.cam_to_world) @ P_world.T).T
 
             print(f"Found {P_world.shape} new landmarks")
@@ -165,6 +176,35 @@ class TrackManager:
             )
             P_world = P_world[mask_distance, :]
             kp_j = kp_j[mask_distance, :]
+
+            # #remove landmarks where the angle between the two cameras is too small
+            T_cami = state_i.cam_to_world[:3, 3]
+            T_camj = state_j.cam_to_world[:3, 3]
+
+            P_to_cami = T_cami - P_world[:, :3]
+            P_to_camj = T_camj - P_world[:, :3]
+
+            # normalize
+            P_to_cami = P_to_cami / np.linalg.norm(P_to_cami, axis=1)[:, None]
+            P_to_camj = P_to_camj / np.linalg.norm(P_to_camj, axis=1)[:, None]
+
+            print(P_to_cami[:10, :])
+            print(P_to_camj[:10, :])
+            # print(P_to_cami.shape)  
+            # print(P_to_camj.shape)
+            inner = np.sum(P_to_cami*P_to_camj, axis=1)
+            print(inner[:10])
+            angles = np.arccos(np.clip(inner, -1.0, 1.0))
+            print(angles[:10])
+            angle_mask = angles > np.percentile(angles, 90)
+
+            print(
+                f"filtering out {np.sum(np.logical_not(angle_mask))} landmarks that"
+                " have too small angle between cameras"
+            )
+
+            # P_world = P_world[angle_mask, :]
+            # kp_j = kp_j[angle_mask, :]
 
             landmarks = np.concatenate([landmarks, P_world[:, :3]], axis=0)
             keypoints = np.concatenate([keypoints, kp_j[:, :2]], axis=0)
@@ -281,7 +321,6 @@ def run_tracking(dataset=Dataset.PARKING, plotting=False, auto=True):
     states[start_frame].landmarks = landmarks
     states[start_frame].keypoints = keypoints_j
 
-
     # init tracking 
     track_manager = TrackManager(
         same_keypoints_threshold=params.CONT_PARAMS.SAME_KEYPOINTS_THRESHOLD,
@@ -343,11 +382,10 @@ def run_tracking(dataset=Dataset.PARKING, plotting=False, auto=True):
 
         # filter points behind camera and far away
         mask_distance = np.logical_and(
-            P_camj[:, 2] > 0, np.abs(np.linalg.norm(P_camj, axis=1)) < 60
+            P_camj[:, 2] > 0, np.abs(np.linalg.norm(P_camj, axis=1)) < 100
         )
         state_j.landmarks = state_j.landmarks[mask_distance, :]
         state_j.keypoints = state_j.keypoints[mask_distance, :]
-
 
         track_manager.update(
             t,
@@ -355,7 +393,7 @@ def run_tracking(dataset=Dataset.PARKING, plotting=False, auto=True):
             img_j=img_j,
         )
 
-        track_manager.start_new_track(state_j, check_keypoints=False)
+        track_manager.start_new_track(state_j, check_keypoints=True)
 
         landmarks, keypoints = track_manager.get_new_landmarks(
             t + 1,
@@ -439,6 +477,12 @@ def run_tracking(dataset=Dataset.PARKING, plotting=False, auto=True):
         # update state
         state_j.keypoints = np.concatenate([state_j.keypoints, keypoints], axis=0)
         state_j.landmarks = np.concatenate([state_j.landmarks, landmarks], axis=0)
+
+        # randomize order of landmarks and keypoints
+        # indices = np.arange(state_j.keypoints.shape[0])
+        # np.random.shuffle(indices)
+        # state_j.keypoints = state_j.keypoints[indices, :]
+        # state_j.landmarks = state_j.landmarks[indices, :]
 
 if __name__ == "__main__":
     run_tracking(plotting=True)
