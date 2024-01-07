@@ -11,6 +11,7 @@ from utils.decompose_essential_matrix import decomposeEssentialMatrix
 from utils.disambiguate_relative_pose import disambiguateRelativePose
 from features import FeatureDetector
 from utils.utils import hom_inv
+from utils.linear_triangulation import linearTriangulation
 
 # Note that order is scale rotate translate
 # When composing matrices this means T * R * S
@@ -24,10 +25,8 @@ def twoDtwoD(
     pos_i: np.ndarray = None,
     pos_j: np.ndarray = None
 ):
-    # convert img to grayscale
     img_i = cv.imread(state_i.img_path, cv.IMREAD_GRAYSCALE)
     img_j = cv.imread(state_j.img_path, cv.IMREAD_GRAYSCALE)
-
     if not no_feature_detection:
         if feature_detector == FeatureDetector.KLT.value:
             # Extract feature (SIFT) in image i and tracked them to image
@@ -55,36 +54,29 @@ def twoDtwoD(
             pos_i = mf_i.get_positions()
             pos_j = mf_j.get_positions()
 
-    # Calculate the Fundamental matrix using 8 point algorithm with RANSAC
-    F, mask = geom.calc_fundamental_mat(pos_i, pos_j)
-    
-    ## Select only inliers points
-    inliers = mask.ravel() == 1
-    pos_i = pos_i[inliers, :]
-    pos_j = pos_j[inliers, :]
-
-    # get essential matrix
+    F, mask_f = geom.calc_fundamental_mat(pos_i, pos_j)
     E = geom.calc_essential_mat_from_fundamental_mat(F, K)
+    p_i = np.hstack([pos_i, np.ones((pos_i.shape[0], 1))]).T
+    p_j = np.hstack([pos_j, np.ones((pos_j.shape[0], 1))]).T
 
-    # Convert keypoints to homogenous coordinates
-    p_i = np.hstack([pos_i, np.ones((pos_i.shape[0], 1))])
-    p_j = np.hstack([pos_j, np.ones((pos_j.shape[0], 1))])
-
-    # Decompose the essential matrix into R and T
+    p_i = p_i[:, mask_f.ravel() == 1]
+    p_j = p_j[:, mask_f.ravel() == 1]
     R, T = decomposeEssentialMatrix(E)
-    
-    # Disambiguate between different translations and rotations, where the solutions is the one with the 
-    # most points in front of both camera
-    T_cami_to_camj, P_cami, mask_reconstruction = disambiguateRelativePose(R, T, p_i.T, p_j.T, K, K)
-    
-    # use only feasible keypoints
-    p_i = p_i[mask_reconstruction]
-    p_j = p_j[mask_reconstruction]
+    # Rotate -> Translate order
+    T_cami_camj, P_cami, mask = disambiguateRelativePose(R, T, p_i, p_j, K, K)
+    P_cami = P_cami.T
+    p_i = p_i[:, mask]
+    p_j = p_j[:, mask]
 
-    T_camj_to_world = hom_inv(T_cami_to_camj) @ state_i.cam_to_world
-    P_world = (hom_inv(state_i.cam_to_world) @ P_cami.T).T
+    M_cami_to_camj = T_cami_camj
 
-    return T_camj_to_world, P_world[:, :3], p_j[:, :2], mask_reconstruction, inliers
+    M_camj_to_cami = hom_inv(M_cami_to_camj)
+    M_cami_to_world = state_i.cam_to_world
+    M_camj_to_world = M_cami_to_world @ M_camj_to_cami
+
+    P_world = M_cami_to_world @ P_cami
+
+    return M_camj_to_world, P_world[:3, :].T, p_i[:2, :].squeeze().T, p_j[:2, :].squeeze().T
 
 def calculate_relative_pose(points_i, points_j, K):
     F, mask_f = geom.calc_fundamental_mat(points_i, points_j)
