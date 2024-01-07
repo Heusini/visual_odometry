@@ -242,7 +242,7 @@ if __name__ == "__main__":
     params = get_params()
     # load data
     # if you remove steps then all the images are used
-    loader = DataLoader(dataset, start=600, stride=1, steps=float('inf'))
+    loader = DataLoader(dataset, start=0, stride=1, steps=float('inf'))
     print("Loading data...")
 
     config = loader.config
@@ -257,7 +257,7 @@ if __name__ == "__main__":
     start_frame = params.INIT_PARAMS.BASELINE_FRAME_INDICES[1]
 
     # Initialize 3D pointcloud
-    M_cam_to_world, landmarks, keypoints, mask_reconstruction, inliers = twoDtwoD(
+    M_cam_to_world, landmarks, keypoints_i, keypoints_j = twoDtwoD(
         states[ref_frame],
         states[start_frame],
         [s.img_path for s in states[ref_frame:start_frame+1]],
@@ -265,68 +265,13 @@ if __name__ == "__main__":
         feature_detector=params.INIT_PARAMS.MATCHER,
     )
 
-    # relative scale estimation
-    # kp_r1 = states[ref_frame].features.get_positions()[inliers, :]
-    # kp_r1 = kp_r1[mask_reconstruction]
-    # kp_r2, mask_klt = klt(
-    #         kp_r1,
-    #         cv.imread(states[ref_frame].img_path, cv.IMREAD_GRAYSCALE),
-    #         cv.imread(states[ref_frame+1].img_path, cv.IMREAD_GRAYSCALE)
-    #     )
-    
-    # kp_r1 = kp_r1[mask_klt]
-    # kp_r2 = kp_r2[mask_klt]
-    # kp_s2, mask_klt = klt(
-    #         kp_r2,
-    #         cv.imread(states[ref_frame+1].img_path, cv.IMREAD_GRAYSCALE),
-    #         cv.imread(states[start_frame+1].img_path, cv.IMREAD_GRAYSCALE)
-    #     )
-
-    # _, P2, kp2, mask_reconstruction, inliers = twoDtwoD(
-    #     states[ref_frame+1],
-    #     states[start_frame+1],
-    #     [s.img_path for s in states[ref_frame+1:start_frame+2]],
-    #     K,
-    #     feature_detector=params.INIT_PARAMS.MATCHER,
-    #     no_feature_detection=True,
-    #     pos_i=kp_r2,
-    #     pos_j=kp_s2
-    # )
-
-    # P1 = landmarks[inliers]
-    # P1 = P1[mask_reconstruction]
-
-    # dist1 = pairwise_distances(P1)
-    # dist2 = pairwise_distances(P2)
-    # relative_scale = 1/compute_scale_factor(dists1=dist1, dists2=dist2)
-
-    # M_cam_to_world[:3, 3] *= relative_scale
-    # landmarks *= relative_scale
-
-    # img1 = cv.imread(states[0].img_path, cv.IMREAD_GRAYSCALE)
-    # img2 = cv.imread(states[start_frame].img_path, cv.IMREAD_GRAYSCALE)
-
-    # features1 = detect_features(img1)
-    # features2 = detect_features(img2)
-
-    # mf_i, mf_j = match_features(features1, features2, threshold=0.6)
-    # pos_i = mf_i.get_positions()
-    # pos_j = mf_j.get_positions()
-    # print(f"{len(pos_i)} keypoints matched")
-    # print(f"{len(pos_j)} keypoints matched")
-    # M_cam_to_world, landmarks, mask = initialize_camera_poses(pos_i, pos_j, K)
-    # keypoints = pos_j[mask, :]
-
-    print(f"Found {landmarks.shape} new landmarks")
-    print(f"Found {keypoints.shape} new keypoints")
-
     states[ref_frame].cam_to_world = np.eye(4)
     states[ref_frame].landmarks = landmarks
-    states[ref_frame].keypoints = keypoints
+    states[ref_frame].keypoints = keypoints_i
 
     states[start_frame].cam_to_world = M_cam_to_world
     states[start_frame].landmarks = landmarks
-    states[start_frame].keypoints = keypoints
+    states[start_frame].keypoints = keypoints_j
 
 
     # init tracking 
@@ -347,16 +292,10 @@ if __name__ == "__main__":
     plt.show()
 
     cam_hist = np.zeros((len(states), 3))
-    # cam_hist[start_frame, :] = states[start_frame].cam_to_world[:3, 3]
-    # ax3.clear()
-    # ax3.scatter(
-    #     cam_hist[:, 0],
-    #     cam_hist[:, 2],
-    #     s=1,
-    #     c="black",
-    #     label="camera position",
-    #     alpha=1,
-    # )
+    cam_hist[ref_frame, :] = states[ref_frame].cam_to_world[:3, 3]
+    cam_hist[start_frame, :] = states[start_frame].cam_to_world[:3, 3]
+    track_manager.prev_keyframe = states[start_frame]
+
     for t in range(ref_frame, len(states)):
         state_i = states[t]
         state_j = states[t + 1]
@@ -390,28 +329,6 @@ if __name__ == "__main__":
         state_j.cam_to_world = M_cam_to_world
         state_j.landmarks = state_j.landmarks[ransac_mask, :]
         state_j.keypoints = state_j.keypoints[ransac_mask, :]
-        # if state_i.landmarks.shape[0] > 5:
-        # else:
-        #     M_cam_to_world, landmarks, keypoints = twoDtwoD(
-        #         track_manager.prev_keyframe,
-        #         state_j,
-        #         [s.img_path for s in states[track_manager.prev_keyframe.t:t+1]],
-        #         K,
-        #         feature_detector=FeatureDetector.SIFT,
-        #         ransac_params=(
-        #             0.1,
-        #             0.999,
-        #             10000
-        #         ),
-        #         lk_params=dict(winSize=(21, 21),maxLevel=8,criteria=(3, 10, 0.001)),
-        #         sift_params=0.6,
-        #         max_depth_distance=100
-        #     )
-
-        #     state_j.cam_to_world = M_cam_to_world
-        #     state_j.landmarks = state_j.landmarks
-        #     state_j.keypoints = state_j.keypoints
-
 
         track_manager.update(
             t,
@@ -427,29 +344,6 @@ if __name__ == "__main__":
             frame_states=states,
             K=K,
         )
-
-        # baseline_sigma = track_manager._baseline_uncertainty(track_manager.prev_keyframe.cam_to_world, state_j.cam_to_world, state_j.landmarks)
-
-        # if baseline_sigma > 0.1:
-        #     M_cam_to_world, landmarks, keypoints = twoDtwoD(
-        #         track_manager.prev_keyframe,
-        #         state_j,
-        #         [s.img_path for s in states[track_manager.prev_keyframe.t:t+1]],
-        #         K,
-        #         feature_detector=FeatureDetector.SIFT,
-        #         ransac_params=(
-        #             0.1,
-        #             0.999,
-        #             10000
-        #         ),
-        #         lk_params=dict(winSize=(21, 21),maxLevel=8,criteria=(3, 10, 0.001)),
-        #         sift_params=0.8,
-        #         max_depth_distance=100
-        #     )
-        # track_manager.prev_keyframe = state_j
-        # state_j.cam_to_world = M_cam_to_world
-        # state_j.keypoints = keypoints
-        # state_j.landmarks = landmarks
         
         print(f"Found {landmarks.shape} new landmarks")
 
@@ -546,7 +440,7 @@ if __name__ == "__main__":
         ax1.set_ylabel("z")
         #ax1.set_aspect("equal", adjustable="box")
 
-        cam_hist[t, :] = (state_j.cam_to_world[:3, 3])
+        cam_hist[t+1, :] = (state_j.cam_to_world[:3, 3])
 
         # ax2.scatter(
         #     landmarks[:, 0],
