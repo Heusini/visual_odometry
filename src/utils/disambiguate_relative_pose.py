@@ -62,12 +62,9 @@ def disambiguateRelativePose(Rots, u3, points0_h, points1_h, K1, K2):
     T_cami_camj[:3, 3] = T.ravel()
 
     # Remove points behind the camera and far away
-    max_point_distance = params.INIT_PARAMS.MAX_DEPTH_DISTANCE
     min_depth_distance = min(0, T_cami_camj[2, 2])
-    close_points = np.linalg.norm(P_cami[:3, :], axis=0) <= max_point_distance
-    not_behind_camera = P_cami[2, :] > min_depth_distance
 
-    mask = np.logical_and(close_points, not_behind_camera)
+    mask = np.logical_and(P_cami[2, :] > min_depth_distance, np.abs(np.linalg.norm(P_cami, axis=0)) < params.INIT_PARAMS.MAX_DEPTH_DISTANCE)
 
     P_cami = P_cami[:, mask].T
 
