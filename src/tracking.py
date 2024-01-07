@@ -157,20 +157,12 @@ class TrackManager:
             ).T
             P_world = P_world / np.reshape(P_world[:, 3], (-1, 1))
 
-            M_cami_to_camj = np.linalg.inv(state_j.cam_to_world) @ state_i.cam_to_world
-
-            P_camj = (np.linalg.inv(state_j.cam_to_world) @ P_world.T).T
-            P_cami = (np.linalg.inv(state_i.cam_to_world) @ P_world.T).T
-            P_camj_proj = (M_cami_to_camj @ P_cami.T).T
-            error = np.linalg.norm(P_camj[:, :2] - P_camj_proj[:, :2], axis=1)
-            # remove points that do not correspond to motion of the camera
-            mask_motion = error < np.percentile(error, 80)
-            # P_world = P_world[mask_motion, :]
-            # kp_j = kp_j[mask_motion, :]
-
             P_camj = (np.linalg.inv(state_j.cam_to_world) @ P_world.T).T
 
             print(f"Found {P_world.shape} new landmarks")
+
+            if P_world.shape[0] == 0:
+                continue
 
             # filter points behind camera and far away
             mask_distance = np.logical_and(
@@ -178,6 +170,34 @@ class TrackManager:
             )
             P_world = P_world[mask_distance, :]
             kp_j = kp_j[mask_distance, :]
+
+            print(
+                f"filtering out {np.sum(np.logical_not(mask_distance))} landmarks that"
+                " are too far away or behind the camera"
+            )
+            if P_world.shape[0] == 0:
+                continue
+
+
+            # M_cami_to_camj = np.linalg.inv(state_j.cam_to_world) @ state_i.cam_to_world
+
+            # P_camj = (K @ np.linalg.inv(state_j.cam_to_world) @ P_world.T).T
+            # P_cami = (np.linalg.inv(state_i.cam_to_world) @ P_world.T).T
+            # P_camj_proj = (M_cami_to_camj @ P_cami.T).T
+            # error = np.linalg.norm(P_camj[:, :2] - P_camj_proj[:, :2], axis=1)
+            # print(P_camj_proj[:10, :])
+            # print(P_camj[:10, :])
+            # # remove points that do not correspond to motion of the camera
+            # mask_motion = error < np.percentile(error, 50)
+            # # P_world = P_world[mask_motion, :]
+            # # kp_j = kp_j[mask_motion, :]
+
+            # print(
+            #     f"filtering out {np.sum(np.logical_not(mask_motion))} landmarks that"
+            #     " do not correspond to motion of the camera"
+            # )
+            # if P_world.shape[0] == 0:
+            #     continue
 
             # #remove landmarks where the angle between the two cameras is too small
             T_cami = state_i.cam_to_world[:3, 3]
@@ -190,15 +210,15 @@ class TrackManager:
             P_to_cami = P_to_cami / np.linalg.norm(P_to_cami, axis=1)[:, None]
             P_to_camj = P_to_camj / np.linalg.norm(P_to_camj, axis=1)[:, None]
 
-            print(P_to_cami[:10, :])
-            print(P_to_camj[:10, :])
+            # print(P_to_cami[:10, :])
+            # print(P_to_camj[:10, :])
             # print(P_to_cami.shape)  
             # print(P_to_camj.shape)
             inner = np.sum(P_to_cami*P_to_camj, axis=1)
-            print(inner[:10])
+            # print(inner[:10])
             angles = np.arccos(np.clip(inner, -1.0, 1.0))
-            print(angles[:10])
-            angle_mask = angles > np.percentile(angles, 90)
+            # print(angles[:10])
+            angle_mask = angles > np.percentile(angles, 85)
 
             print(
                 f"filtering out {np.sum(np.logical_not(angle_mask))} landmarks that"
@@ -325,8 +345,9 @@ def run_tracking(dataset=Dataset.PARKING, plotting=False, plotting2=False, auto=
     states[start_frame].keypoints = keypoints_j
 
     # init tracking 
+    print(params.CONT_PARAMS.SAME_KEYPOINTS_THRESHOLD)
     track_manager = TrackManager(
-        same_keypoints_threshold=params.CONT_PARAMS.SAME_KEYPOINTS_THRESHOLD,
+        same_keypoints_threshold=30,
         max_track_length=params.CONT_PARAMS.MAX_TRACK_LENGTH,
         max_depth_distance=params.CONT_PARAMS.MAX_DEPTH_DISTANCE,
         init_keyframe=states[ref_frame]
@@ -462,7 +483,7 @@ def run_tracking(dataset=Dataset.PARKING, plotting=False, plotting2=False, auto=
 
             label = "all landmarks" if t == 0 else None
             cam_label = "camera position" if t == 0 else None
-            dashboard.update_axis(2, [state_j.landmarks[:, 0], state_j.landmarks[:, 2]], color='black', label=label)
+            dashboard.update_axis(2, [state_j.landmarks[:, 0], state_j.landmarks[:, 2]], color='black', label=label, size=2)
             dashboard.update_axis(2, [state_j.cam_to_world[0, 3], state_j.cam_to_world[2, 3]], color='red', label=cam_label)
 
             dashboard.update_axis(3, [cam_hist[ref_frame:t+1, 0], cam_hist[ref_frame:t+1, 2]], color='black', label=cam_label)
@@ -512,7 +533,7 @@ def run_tracking(dataset=Dataset.PARKING, plotting=False, plotting2=False, auto=
         # state_j.landmarks = state_j.landmarks[indices, :]
 
 if __name__ == "__main__":
-    run_tracking(dataset=Dataset.KITTI, plotting2=True)
+    run_tracking(dataset=Dataset.PARKING, plotting=True)
 
 
 
