@@ -383,6 +383,18 @@ if __name__ == "__main__":
         state_j.cam_to_world = M_cam_to_world
         state_j.landmarks = state_j.landmarks[ransac_mask, :]
         state_j.keypoints = state_j.keypoints[ransac_mask, :]
+
+        P_world = np.hstack([state_j.landmarks, np.ones((state_j.landmarks.shape[0], 1))])
+
+        P_camj = (np.linalg.inv(state_j.cam_to_world) @ P_world.T).T
+
+        # filter points behind camera and far away
+        mask_distance = np.logical_and(
+            P_camj[:, 2] > 0, np.abs(np.linalg.norm(P_camj, axis=1)) < 60
+        )
+        state_j.landmarks = state_j.landmarks[mask_distance, :]
+        state_j.keypoints = state_j.keypoints[mask_distance, :]
+        
         # if state_i.landmarks.shape[0] > 5:
         # else:
         #     M_cam_to_world, landmarks, keypoints = twoDtwoD(
