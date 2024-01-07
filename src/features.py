@@ -53,6 +53,24 @@ def detect_features_shi_tomasi(img, max_num: int, threshold: float, non_maxima_s
 
     return corners
 
+def harris(img : np.ndarray) -> np.ndarray:
+
+    img = np.float32(img)
+    dst = cv.cornerHarris(img, blockSize=2, ksize=3, k=0.1)
+    dst = cv.dilate(dst, None)
+
+    ret, dst = cv.threshold(dst, 0.01 * dst.max(), 255, 0)
+    dst = np.uint8(dst)
+
+    ret, labels, stats, centroids = cv.connectedComponentsWithStats(dst)
+    criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 50, 0.001)
+
+    corners = cv.cornerSubPix(img, np.float32(centroids), (5, 5), (-1, -1), criteria)
+
+    return corners
+
+
+
 def matching_klt(img_paths, features_i):
     params = get_params()
     features_j = features_i
